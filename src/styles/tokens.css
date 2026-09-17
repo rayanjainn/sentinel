@@ -1,0 +1,37 @@
+/* Design tokens — see docs/DESIGN.md. Shared with website/. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0e1217;
+  --panel: #131820;
+  --raised: #1a2029;
+  --sunken: #0a0d11;
+  --line: rgb(214 226 240 / 0.07);
+  --line-strong: rgb(214 226 240 / 0.14);
+  --fg: #e3e8ee;
+  --fg-muted: #97a1ae;
+  --fg-subtle: #5d6774;
+  --signal: #74d3ae;
+  --signal-ink: #062016;
+  --warn: #e3a857;
+  --danger: #e26458;
+  --shadow-tint: 4 8 14;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f3f5f7;
+  --panel: #ffffff;
+  --raised: #eaeef2;
+  --sunken: #e3e8ed;
+  --line: rgb(16 24 34 / 0.08);
+  --line-strong: rgb(16 24 34 / 0.16);
+  --fg: #121820;
+  --fg-muted: #525d6a;
+  --fg-subtle: #87919d;
+  --signal: #16895f;
+  --signal-ink: #ffffff;
+  --warn: #a86a10;
+  --danger: #bf3a2e;
+  --shadow-tint: 30 40 52;
+}
