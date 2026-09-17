@@ -204,6 +204,10 @@ jobs:
       - name: Type-check (astro check)
         run: pnpm check
 
+      # Node's built-in test runner (TypeScript type stripping needs Node 22.18 or later).
+      - name: Unit tests
+        run: pnpm test
+
       # Astro prints warnings but still exits 0, so fail on them explicitly.
       - name: Build
         run: |
