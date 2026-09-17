@@ -11,8 +11,6 @@ export interface Crumb {
 
 interface StorageViewState {
   tab: StorageTab;
-  /** Scan target: "home" or a volume mount point. */
-  target: string;
   crossMounts: boolean;
   crumbs: Crumb[];
   largestSelected: Set<string>;
@@ -21,7 +19,6 @@ interface StorageViewState {
   duplicateSelected: Set<string> | null;
   duplicateMinBytes: number;
   setTab: (tab: StorageTab) => void;
-  setTarget: (target: string) => void;
   setCrossMounts: (crossMounts: boolean) => void;
   resetCrumbs: (root: Crumb) => void;
   pushCrumbs: (crumbs: Crumb[]) => void;
@@ -35,7 +32,6 @@ interface StorageViewState {
 
 export const useStorageView = create<StorageViewState>((set) => ({
   tab: "overview",
-  target: "home",
   crossMounts: false,
   crumbs: [],
   largestSelected: new Set(),
@@ -43,7 +39,6 @@ export const useStorageView = create<StorageViewState>((set) => ({
   duplicateSelected: null,
   duplicateMinBytes: 1_000_000,
   setTab: (tab) => set({ tab }),
-  setTarget: (target) => set({ target }),
   setCrossMounts: (crossMounts) => set({ crossMounts }),
   resetCrumbs: (root) => set({ crumbs: [root] }),
   pushCrumbs: (crumbs) => set((s) => ({ crumbs: [...s.crumbs, ...crumbs] })),
