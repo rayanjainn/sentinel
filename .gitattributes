@@ -1,0 +1,7 @@
+# Normalize line endings so Windows CI checkouts match the committed files (rustfmt, bindings diff).
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
+*.woff2 binary
