@@ -165,9 +165,10 @@ const { section = "home" } = Astro.props;
     height: 19px;
   }
 
-  /* Show the icon for the theme you would switch to. */
-  :global([data-theme="light"]) .theme-icon-sun,
-  :global(:root:not([data-theme="light"])) .theme-icon-moon {
+  /* Show the icon for the theme you would switch to. The svg is rendered by Icon.astro, so the
+     class must be matched globally rather than with this component's scope attribute. */
+  :global([data-theme="light"] .theme-icon-sun),
+  :global(:root:not([data-theme="light"]) .theme-icon-moon) {
     display: none;
   }
 
