@@ -297,11 +297,11 @@ impl StreamState {
                         json!({})
                     },
                 });
-            } else if part["thought"].as_bool() != Some(true) {
-                if let Some(text) = part["text"].as_str() {
-                    super::push_text(&mut self.content, text);
-                    super::send_text(deltas, text);
-                }
+            } else if part["thought"].as_bool() != Some(true)
+                && let Some(text) = part["text"].as_str()
+            {
+                super::push_text(&mut self.content, text);
+                super::send_text(deltas, text);
             }
         }
         if let Some(reason) = candidate["finishReason"].as_str() {
