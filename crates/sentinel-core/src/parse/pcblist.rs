@@ -67,6 +67,11 @@ fn addr(item: &[u8], offset: usize, vflag: u8) -> Option<IpAddr> {
     if vflag & INP_IPV6 != 0 {
         let mut octets = [0u8; 16];
         octets.copy_from_slice(raw);
+        // KAME-derived stacks embed the interface scope in bytes 2..4 of link-local addresses.
+        if octets[0] == 0xfe && octets[1] & 0xc0 == 0x80 {
+            octets[2] = 0;
+            octets[3] = 0;
+        }
         Some(IpAddr::V6(Ipv6Addr::from(octets)))
     } else {
         // in_addr_4in6: three padding words, then the IPv4 address in network order.
