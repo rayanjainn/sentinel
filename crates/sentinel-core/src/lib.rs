@@ -6,6 +6,7 @@ pub mod model;
 pub mod parse;
 pub mod platform;
 pub mod provider;
+pub mod runtime;
 pub mod service;
 pub mod util;
 
