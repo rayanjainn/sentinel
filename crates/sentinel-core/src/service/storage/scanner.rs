@@ -210,6 +210,16 @@ impl<'a> Walker<'a> {
         let mut local_ext: HashMap<Option<String>, (u64, u64)> = HashMap::new();
         let mut local_bytes = 0u64;
         let mut local_items = 0u64;
+        // `read_dir` order is filesystem-defined (ext4 and APFS disagree), and it decides which
+        // name of a hard-linked file keeps the real size in `first_link`. Sort so that choice —
+        // and everything downstream that depends on it, like `largest_files` — is deterministic
+        // across platforms and runs, not an accident of directory-entry order.
+        let mut entries: Vec<_> = entries.collect();
+        entries.sort_by(|a, b| {
+            let a_name = a.as_ref().ok().map(std::fs::DirEntry::file_name);
+            let b_name = b.as_ref().ok().map(std::fs::DirEntry::file_name);
+            a_name.cmp(&b_name)
+        });
         for entry in entries {
             let Ok(entry) = entry else {
                 dir.unreadable += 1;

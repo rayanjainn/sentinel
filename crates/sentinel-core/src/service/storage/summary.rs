@@ -277,7 +277,18 @@ mod tests {
             dirs: vec![caches, downloads, trash],
             ..Default::default()
         };
-        let tree = ScanTree::from_built(PathBuf::from("/home/u"), root);
+        let root_path = PathBuf::from("/home/u");
+        let tree = ScanTree::from_built(root_path.clone(), root);
+        // `PathBuf::push` joins with the platform's native separator, so a node's rendered path
+        // mixes the literal `/`s above with `\`s on Windows. Build expectations the same way the
+        // tree does rather than hardcoding forward-slash strings that only match on Unix.
+        let expect = |parts: &[&str]| -> String {
+            let mut p = root_path.clone();
+            for part in parts {
+                p.push(part);
+            }
+            p.to_string_lossy().into_owned()
+        };
         let locations = vec![
             CleanupLocation {
                 category: CleanupCategory::AppCache,
@@ -311,19 +322,19 @@ mod tests {
             .iter()
             .map(|s| (s.path.as_str(), s.category, s.actionable))
             .collect();
-        assert!(paths.contains(&("/home/u/.Trash", CleanupCategory::Trash, false)));
+        let trash_path = expect(&[".Trash"]);
+        assert!(paths.contains(&(trash_path.as_str(), CleanupCategory::Trash, false)));
+        let old_download_path = expect(&["Downloads", "old.dmg"]);
         assert!(paths.contains(&(
-            "/home/u/Downloads/old.dmg",
+            old_download_path.as_str(),
             CleanupCategory::OldDownloads,
             true
         )));
+        let app_cache_path = expect(&["Caches", "com.old.app"]);
+        assert!(paths.contains(&(app_cache_path.as_str(), CleanupCategory::AppCache, true)));
+        let brew_cache_path = expect(&["Caches", "Homebrew"]);
         assert!(paths.contains(&(
-            "/home/u/Caches/com.old.app",
-            CleanupCategory::AppCache,
-            true
-        )));
-        assert!(paths.contains(&(
-            "/home/u/Caches/Homebrew",
+            brew_cache_path.as_str(),
             CleanupCategory::PackageManagerCache,
             true
         )));

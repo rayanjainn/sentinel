@@ -417,7 +417,7 @@ fn trash_preview_and_commit_report_real_outcome() {
     let (dir, audit, service) = file_service(Some("locked.bin"));
     let work = dir.path().join("work");
     std::fs::create_dir_all(work.join("nested")).unwrap();
-    let work = std::fs::canonicalize(work).unwrap();
+    let work = crate::util::strip_verbatim(std::fs::canonicalize(work).unwrap());
     std::fs::write(work.join("a.bin"), vec![0u8; 3000]).unwrap();
     std::fs::write(work.join("locked.bin"), vec![0u8; 1000]).unwrap();
     std::fs::write(work.join("nested/inner.bin"), vec![0u8; 10]).unwrap();

@@ -70,11 +70,18 @@ fn scans_tree_with_small_files_links_and_duplicates() {
     );
     #[cfg(unix)]
     assert_eq!(summary.file_count, 9);
-    let canonical = std::fs::canonicalize(root).unwrap();
-    assert_eq!(
-        summary.largest_files[0].path,
-        canonical.join("big.bin").to_string_lossy()
+    let canonical = crate::util::strip_verbatim(std::fs::canonicalize(root).unwrap());
+    // Which of the two hard-linked names keeps the real size is a deterministic tiebreak
+    // (scanner.rs sorts directory entries before choosing), not a contract either name owns —
+    // assert the invariant that matters rather than pinning one name to this test run.
+    let top = &summary.largest_files[0];
+    assert!(
+        top.path == canonical.join("big.bin").to_string_lossy()
+            || top.path == canonical.join("big-link.bin").to_string_lossy(),
+        "expected the largest file to be one of the hard-linked names, got {}",
+        top.path
     );
+    assert_eq!(top.size_bytes, 400 * 1024);
     #[cfg(unix)]
     {
         let bigs = summary

@@ -10,7 +10,7 @@ use crate::action::{
 };
 use crate::error::{CoreResult, SentinelError};
 use crate::model::{Platform, TimestampSecs};
-use crate::util::{format_bytes, home_dir, now_secs, path_string, tilde_path};
+use crate::util::{format_bytes, home_dir, now_secs, path_string, strip_verbatim, tilde_path};
 
 const MAX_PATHS: usize = 10_000;
 const LARGE_BATCH_BYTES: u64 = 50 * 1024 * 1024 * 1024;
@@ -116,19 +116,6 @@ fn normalize(raw: &str) -> CoreResult<PathBuf> {
         Ok(parent) => Ok(strip_verbatim(parent).join(name)),
         Err(_) => Ok(path),
     }
-}
-
-fn strip_verbatim(path: PathBuf) -> PathBuf {
-    #[cfg(windows)]
-    {
-        let text = path.to_string_lossy();
-        if let Some(rest) = text.strip_prefix(r"\\?\")
-            && !rest.starts_with("UNC\\")
-        {
-            return PathBuf::from(rest);
-        }
-    }
-    path
 }
 
 struct Target {

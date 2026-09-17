@@ -1,10 +1,26 @@
 //! Small helpers shared across services and platforms.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::SentinelError;
 use crate::model::{Pid, TimestampMs, TimestampSecs};
+
+/// `canonicalize` on Windows yields `\\?\C:\…`; show and match plain paths. Shared by every
+/// place that canonicalizes a user- or test-supplied path (storage scans, file actions, and
+/// their tests), so production and tests always agree on what a "real" path looks like.
+pub(crate) fn strip_verbatim(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let text = path.to_string_lossy();
+        if let Some(rest) = text.strip_prefix(r"\\?\")
+            && !rest.starts_with("UNC\\")
+        {
+            return PathBuf::from(rest);
+        }
+    }
+    path
+}
 
 pub fn now_ms() -> TimestampMs {
     SystemTime::now()

@@ -22,6 +22,7 @@ use crate::events::{CoreEvent, EventSink};
 use crate::model::*;
 use crate::provider::StorageProvider;
 use crate::service::FileFilter;
+use crate::util::strip_verbatim;
 use crate::util::{now_ms, now_secs};
 
 const PROGRESS_EVERY: Duration = Duration::from_millis(250);
@@ -630,20 +631,6 @@ fn progress_event(
         elapsed_ms: started.elapsed().as_millis() as u64,
         error,
     }
-}
-
-/// `canonicalize` on Windows yields `\\?\C:\…`; show and match plain paths.
-fn strip_verbatim(path: PathBuf) -> PathBuf {
-    #[cfg(windows)]
-    {
-        let text = path.to_string_lossy();
-        if let Some(rest) = text.strip_prefix(r"\\?\")
-            && !rest.starts_with("UNC\\")
-        {
-            return PathBuf::from(rest);
-        }
-    }
-    path
 }
 
 #[cfg(test)]
