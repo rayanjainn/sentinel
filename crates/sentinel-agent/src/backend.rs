@@ -42,6 +42,13 @@ pub enum ContentBlock {
         content: String,
         is_error: bool,
     },
+    /// Opaque provider state that must be replayed verbatim to the provider that produced it
+    /// (Anthropic thinking blocks, Gemini thought signatures, Ollama thinking text). Adapters for
+    /// other providers skip it, so switching providers mid-conversation keeps history valid.
+    ProviderData {
+        provider: ProviderId,
+        data: Value,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -22,6 +22,8 @@ tokio.workspace = true
 tauri = { version = "2.11", features = [] }
 tauri-plugin-dialog = "2.7"
 tauri-plugin-clipboard-manager = "2.3"
+# Default `v1` feature: macOS Keychain, Windows Credential Manager, Linux Secret Service.
+keyring = "4.2"
 
 [lints]
 workspace = true

@@ -1,3 +1,5 @@
+//! Agent commands. Thin wrappers over `AgentState`; see `agent_state.rs` for behavior.
+
 use sentinel_agent::events::TranscriptItem;
 use sentinel_agent::plan::{ActionDecision, Plan};
 use sentinel_agent::settings::{
@@ -5,91 +7,115 @@ use sentinel_agent::settings::{
     ProviderStatus,
 };
 use sentinel_core::action::Action;
+use tauri::State;
 
-use super::{CmdResult, not_wired};
+use super::CmdResult;
+use crate::agent_state::AgentState;
+use crate::state::CoreState;
 
 #[tauri::command]
-pub async fn agent_list_providers() -> CmdResult<Vec<ProviderDescriptor>> {
-    not_wired("agent_list_providers")
+pub async fn agent_list_providers(
+    agent: State<'_, AgentState>,
+) -> CmdResult<Vec<ProviderDescriptor>> {
+    Ok(agent.descriptors())
 }
 
 #[tauri::command]
-pub async fn agent_get_settings() -> CmdResult<AgentSettings> {
-    not_wired("agent_get_settings")
+pub async fn agent_get_settings(agent: State<'_, AgentState>) -> CmdResult<AgentSettings> {
+    Ok(agent.settings())
 }
 
 #[tauri::command]
-pub async fn agent_update_settings(settings: AgentSettings) -> CmdResult<AgentSettings> {
-    let _ = settings;
-    not_wired("agent_update_settings")
+pub async fn agent_update_settings(
+    agent: State<'_, AgentState>,
+    settings: AgentSettings,
+) -> CmdResult<AgentSettings> {
+    Ok(agent.update_settings(settings)?)
 }
 
 #[tauri::command]
-pub async fn agent_provider_status() -> CmdResult<Vec<ProviderStatus>> {
-    not_wired("agent_provider_status")
+pub async fn agent_provider_status(agent: State<'_, AgentState>) -> CmdResult<Vec<ProviderStatus>> {
+    Ok(agent.provider_status().await)
 }
 
 #[tauri::command]
-pub async fn agent_set_api_key(provider: ProviderId, key: String) -> CmdResult<KeyStatus> {
-    let _ = (provider, key);
-    not_wired("agent_set_api_key")
+pub async fn agent_set_api_key(
+    agent: State<'_, AgentState>,
+    provider: ProviderId,
+    key: String,
+) -> CmdResult<KeyStatus> {
+    Ok(agent.set_api_key(provider, key).await?)
 }
 
 #[tauri::command]
-pub async fn agent_delete_api_key(provider: ProviderId) -> CmdResult<()> {
-    let _ = provider;
-    not_wired("agent_delete_api_key")
+pub async fn agent_delete_api_key(
+    agent: State<'_, AgentState>,
+    provider: ProviderId,
+) -> CmdResult<()> {
+    Ok(agent.delete_api_key(provider).await?)
 }
 
 #[tauri::command]
-pub async fn agent_list_models(provider: ProviderId) -> CmdResult<Vec<ModelInfo>> {
-    let _ = provider;
-    not_wired("agent_list_models")
+pub async fn agent_list_models(
+    agent: State<'_, AgentState>,
+    provider: ProviderId,
+) -> CmdResult<Vec<ModelInfo>> {
+    Ok(agent.list_models(provider).await?)
 }
 
 #[tauri::command]
-pub async fn agent_ollama_status() -> CmdResult<OllamaStatus> {
-    not_wired("agent_ollama_status")
+pub async fn agent_ollama_status(agent: State<'_, AgentState>) -> CmdResult<OllamaStatus> {
+    Ok(agent.ollama_status().await)
 }
 
 #[tauri::command]
-pub async fn agent_new_conversation() -> CmdResult<String> {
-    not_wired("agent_new_conversation")
+pub async fn agent_new_conversation(agent: State<'_, AgentState>) -> CmdResult<String> {
+    Ok(agent.new_conversation())
 }
 
 #[tauri::command]
-pub async fn agent_send_message(conversation_id: String, text: String) -> CmdResult<()> {
-    let _ = (conversation_id, text);
-    not_wired("agent_send_message")
+pub async fn agent_send_message(
+    agent: State<'_, AgentState>,
+    core: State<'_, CoreState>,
+    conversation_id: String,
+    text: String,
+) -> CmdResult<()> {
+    Ok(agent.send_message(&core, conversation_id, text).await?)
 }
 
 #[tauri::command]
-pub async fn agent_cancel(conversation_id: String) -> CmdResult<()> {
-    let _ = conversation_id;
-    not_wired("agent_cancel")
+pub async fn agent_cancel(agent: State<'_, AgentState>, conversation_id: String) -> CmdResult<()> {
+    agent.cancel(&conversation_id);
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn agent_get_transcript(conversation_id: String) -> CmdResult<Vec<TranscriptItem>> {
-    let _ = conversation_id;
-    not_wired("agent_get_transcript")
+pub async fn agent_get_transcript(
+    agent: State<'_, AgentState>,
+    conversation_id: String,
+) -> CmdResult<Vec<TranscriptItem>> {
+    Ok(agent.transcript(&conversation_id)?)
 }
 
 #[tauri::command]
 pub async fn agent_revise_plan_action(
+    agent: State<'_, AgentState>,
+    core: State<'_, CoreState>,
     plan_id: String,
     action_id: String,
     action: Action,
 ) -> CmdResult<Plan> {
-    let _ = (plan_id, action_id, action);
-    not_wired("agent_revise_plan_action")
+    Ok(agent
+        .revise_plan_action(&core, &plan_id, &action_id, action)
+        .await?)
 }
 
 #[tauri::command]
 pub async fn agent_execute_plan(
+    agent: State<'_, AgentState>,
+    core: State<'_, CoreState>,
     plan_id: String,
     decisions: Vec<ActionDecision>,
 ) -> CmdResult<Plan> {
-    let _ = (plan_id, decisions);
-    not_wired("agent_execute_plan")
+    Ok(agent.execute_plan(&core, &plan_id, decisions).await?)
 }

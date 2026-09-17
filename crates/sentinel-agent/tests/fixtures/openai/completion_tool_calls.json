@@ -1,0 +1,36 @@
+{
+  "id": "chatcmpl-9SenNS",
+  "object": "chat.completion",
+  "created": 1757800000,
+  "model": "gpt-5.6-terra",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll move the stale caches to the Trash once you approve.",
+        "refusal": null,
+        "tool_calls": [
+          {
+            "id": "call_trash",
+            "type": "function",
+            "function": {
+              "name": "move_to_trash",
+              "arguments": "{\"paths\":[\"/Users/me/Library/Caches/com.old.app\"],\"reason\":\"2.3 GB cache, unused for 47 days\"}"
+            }
+          },
+          {
+            "id": "call_bad",
+            "type": "function",
+            "function": {
+              "name": "list_volumes",
+              "arguments": "{not json"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": { "prompt_tokens": 3001, "completion_tokens": 74, "total_tokens": 3075 }
+}
