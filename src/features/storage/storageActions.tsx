@@ -20,7 +20,14 @@ function recordRemoved(paths: string[], outcome: ActionOutcome | null): boolean 
     return true;
   }
   // Partial: hide only the items the outcome confirms, matched by label.
-  const done = paths.filter((p) => outcome.items.some((i) => i.success && (i.label === p || p.endsWith(i.label))));
+  // Item labels are display paths, possibly with the home folder shown as "~".
+  const done = paths.filter((p) =>
+    outcome.items.some((i) => {
+      if (!i.success) return false;
+      const label = i.label.startsWith("~") ? i.label.slice(1) : i.label;
+      return i.label === p || (label.length > 1 && p.endsWith(label));
+    }),
+  );
   useStorage.getState().markRemoved(done);
   return true;
 }
