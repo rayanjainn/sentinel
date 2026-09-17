@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use super::*;
 use crate::audit::{AuditQuery, OriginFilter};
 use crate::model::{ProcessIdentity, ProcessStatus, TerminateMethod};
+use crate::provider::FileOps;
 
 #[derive(Default)]
 struct FakeWorld {
@@ -319,4 +320,240 @@ fn priority_preview_and_commit_measure_nice() {
             .is_err()
     );
     let _ = OriginFilter::Any;
+}
+
+struct FakeFiles {
+    trash_dir: std::path::PathBuf,
+    refuse: Option<String>,
+}
+
+impl FileOps for FakeFiles {
+    fn trash(&self, path: &std::path::Path) -> CoreResult<()> {
+        if self
+            .refuse
+            .as_deref()
+            .is_some_and(|name| path.ends_with(name))
+        {
+            return Err(SentinelError::PermissionDenied {
+                operation: "move to Trash".into(),
+                target: Some(path.display().to_string()),
+                hint: None,
+            });
+        }
+        let target = self.trash_dir.join(path.file_name().unwrap());
+        std::fs::rename(path, target).map_err(|e| SentinelError::io(&e, Some(path)))
+    }
+    fn move_into(
+        &self,
+        path: &std::path::Path,
+        destination_dir: &std::path::Path,
+    ) -> CoreResult<std::path::PathBuf> {
+        let target = destination_dir.join(path.file_name().unwrap());
+        std::fs::rename(path, &target).map_err(|e| SentinelError::io(&e, Some(path)))?;
+        Ok(target)
+    }
+    fn reveal(&self, _path: &std::path::Path) -> CoreResult<()> {
+        Ok(())
+    }
+}
+
+struct FileWorld {
+    files: Arc<FakeFiles>,
+}
+
+impl ActionContext for FileWorld {
+    fn lookup_process(&self, pid: Pid) -> CoreResult<ProcessInfo> {
+        Err(SentinelError::ProcessNotFound { pid })
+    }
+    fn file_ops(&self) -> CoreResult<Arc<dyn FileOps>> {
+        Ok(self.files.clone())
+    }
+    fn path_size(&self, path: &std::path::Path) -> Option<PathSize> {
+        let meta = std::fs::metadata(path).ok()?;
+        Some(PathSize {
+            bytes: meta.len(),
+            items: 1,
+            modified: Some(crate::util::now_secs() - 47 * 86_400),
+            complete: true,
+        })
+    }
+    fn volume_usage(&self, _path: &std::path::Path) -> CoreResult<(u64, u64)> {
+        Ok((1000, 380))
+    }
+    fn volume_label(&self, _path: &std::path::Path) -> Option<String> {
+        Some("Macintosh HD".into())
+    }
+    fn same_volume(&self, _a: &std::path::Path, _b: &std::path::Path) -> Option<bool> {
+        Some(true)
+    }
+}
+
+fn file_service(refuse: Option<&str>) -> (tempfile::TempDir, Arc<MemoryAudit>, ActionService) {
+    let dir = tempfile::tempdir().unwrap();
+    let trash_dir = dir.path().join("fake-trash");
+    std::fs::create_dir(&trash_dir).unwrap();
+    let world = Arc::new(FileWorld {
+        files: Arc::new(FakeFiles {
+            trash_dir,
+            refuse: refuse.map(str::to_owned),
+        }),
+    });
+    let audit = Arc::new(MemoryAudit::default());
+    let service = ActionService::new(
+        world,
+        Arc::new(FakeControl(Arc::new(FakeWorld::default()))),
+        audit.clone(),
+        ActionServiceConfig {
+            platform: Platform::Macos,
+            running_elevated: false,
+        },
+    );
+    (dir, audit, service)
+}
+
+#[test]
+fn trash_preview_and_commit_report_real_outcome() {
+    let (dir, audit, service) = file_service(Some("locked.bin"));
+    let work = dir.path().join("work");
+    std::fs::create_dir_all(work.join("nested")).unwrap();
+    let work = std::fs::canonicalize(work).unwrap();
+    std::fs::write(work.join("a.bin"), vec![0u8; 3000]).unwrap();
+    std::fs::write(work.join("locked.bin"), vec![0u8; 1000]).unwrap();
+    std::fs::write(work.join("nested/inner.bin"), vec![0u8; 10]).unwrap();
+    let paths = vec![
+        work.join("a.bin").display().to_string(),
+        work.join("locked.bin").display().to_string(),
+        work.join("gone.bin").display().to_string(),
+    ];
+    let preview = service
+        .prepare(Action::TrashPaths { paths }, agent_origin())
+        .unwrap();
+    assert!(
+        preview.title.starts_with("Move 2 items"),
+        "{}",
+        preview.title
+    );
+    assert!(preview.description.contains("put back from the Trash"));
+    assert_eq!(preview.estimated_bytes_freed, Some(4000));
+    assert!(matches!(
+        preview.reversibility,
+        Reversibility::Recoverable { .. }
+    ));
+    let gone = preview
+        .targets
+        .iter()
+        .find(|t| t.label.ends_with("gone.bin"))
+        .unwrap();
+    assert!(gone.problem.is_some());
+    assert!(
+        preview.targets[0]
+            .detail
+            .as_deref()
+            .unwrap_or("")
+            .contains("47 days ago")
+    );
+    if let Action::TrashPaths { paths } = &preview.action {
+        assert_eq!(
+            paths.len(),
+            2,
+            "vanished path is not part of the normalized action"
+        );
+    }
+
+    let outcome = service.commit(&preview.token).unwrap();
+    assert_eq!(outcome.status, OutcomeStatus::PartiallySucceeded);
+    assert!(!work.join("a.bin").exists());
+    assert!(
+        dir.path().join("fake-trash/a.bin").exists(),
+        "moved, not unlinked"
+    );
+    assert!(
+        outcome.summary.starts_with("Moved 1 item"),
+        "{}",
+        outcome.summary
+    );
+    assert!(
+        outcome.summary.contains("Macintosh HD is 62% used"),
+        "{}",
+        outcome.summary
+    );
+    assert!(outcome.summary.contains("1 item(s) could not be moved"));
+    let entry = &audit.0.lock()[0];
+    assert_eq!(entry.status, AuditStatus::PartiallySucceeded);
+    assert_eq!(
+        entry.affected_paths,
+        vec![work.join("a.bin").display().to_string()]
+    );
+    assert_eq!(entry.bytes_freed, Some(3000));
+}
+
+#[test]
+fn trash_refuses_protected_paths_and_dedupes_nested() {
+    let (dir, _audit, service) = file_service(None);
+    assert!(matches!(
+        service.prepare(
+            Action::TrashPaths {
+                paths: vec!["/System".into()]
+            },
+            Origin::User
+        ),
+        Err(SentinelError::InvalidInput { .. })
+    ));
+    assert!(matches!(
+        service.prepare(
+            Action::TrashPaths {
+                paths: vec!["relative/path".into()]
+            },
+            Origin::User
+        ),
+        Err(SentinelError::InvalidInput { .. })
+    ));
+    let folder = dir.path().join("folder");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("x"), b"x").unwrap();
+    let preview = service
+        .prepare(
+            Action::TrashPaths {
+                paths: vec![
+                    folder.display().to_string(),
+                    folder.join("x").display().to_string(),
+                ],
+            },
+            Origin::User,
+        )
+        .unwrap();
+    assert_eq!(preview.targets.len(), 1);
+    assert!(preview.warnings.iter().any(|w| w.contains("included once")));
+}
+
+#[test]
+fn move_preview_validates_destination() {
+    let (dir, _audit, service) = file_service(None);
+    let source = dir.path().join("report.pdf");
+    std::fs::write(&source, b"pdf").unwrap();
+    let dest = dir.path().join("archive");
+    std::fs::create_dir(&dest).unwrap();
+    let preview = service
+        .prepare(
+            Action::MovePaths {
+                paths: vec![source.display().to_string()],
+                destination_dir: dest.display().to_string(),
+            },
+            Origin::User,
+        )
+        .unwrap();
+    assert!(preview.description.contains("same volume"));
+    let outcome = service.commit(&preview.token).unwrap();
+    assert_eq!(outcome.status, OutcomeStatus::Succeeded);
+    assert!(dest.join("report.pdf").exists());
+    assert!(matches!(
+        service.prepare(
+            Action::MovePaths {
+                paths: vec![dest.join("report.pdf").display().to_string()],
+                destination_dir: dir.path().join("missing").display().to_string(),
+            },
+            Origin::User
+        ),
+        Err(SentinelError::PathNotFound { .. })
+    ));
 }

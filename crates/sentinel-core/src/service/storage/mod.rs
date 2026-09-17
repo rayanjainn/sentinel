@@ -368,6 +368,47 @@ impl StorageService {
         self.result(&id).ok()
     }
 
+    /// Size of `path` by a sequential walk bounded by `budget`; `complete` is false when the
+    /// budget ran out first.
+    pub fn measure_path(&self, path: &Path, budget: Duration) -> crate::service::actions::PathSize {
+        let deadline = Instant::now() + budget;
+        let mut size = crate::service::actions::PathSize {
+            bytes: 0,
+            items: 0,
+            modified: None,
+            complete: true,
+        };
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if Instant::now() >= deadline {
+                size.complete = false;
+                break;
+            }
+            let Ok(meta) = self.provider.metadata(&current) else {
+                continue;
+            };
+            match meta.kind {
+                EntryKind::Directory => {
+                    if current != path && self.provider.should_skip(&current) {
+                        continue;
+                    }
+                    if let Ok(entries) = std::fs::read_dir(&current) {
+                        stack.extend(entries.flatten().map(|e| e.path()));
+                    }
+                }
+                EntryKind::File => {
+                    size.bytes += meta.allocated_bytes;
+                    size.items += 1;
+                    size.modified = tree::newer(size.modified, meta.modified);
+                }
+                EntryKind::Symlink | EntryKind::Other => {
+                    size.bytes += meta.allocated_bytes;
+                }
+            }
+        }
+        size
+    }
+
     pub fn scan_summary(&self, scan_id: &str) -> CoreResult<ScanSummary> {
         self.result(scan_id).map(|r| r.summary.clone())
     }

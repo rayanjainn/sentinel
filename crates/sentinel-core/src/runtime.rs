@@ -14,7 +14,7 @@ use crate::platform::{self, PlatformConfig, ProcessNames, Providers};
 use crate::provider::{
     FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
 };
-use crate::service::actions::ActionContext;
+use crate::service::actions::{ActionContext, PathSize};
 use crate::service::history::{ProcessHistory, ResourceHistory};
 use crate::service::network::NetworkMonitor;
 use crate::service::network::dns::ReverseDns;
@@ -237,6 +237,46 @@ impl CoreRuntime {
 impl ActionContext for CoreRuntime {
     fn lookup_process(&self, pid: Pid) -> CoreResult<ProcessInfo> {
         self.shared.processes.lock().provider.lookup(pid)
+    }
+
+    fn file_ops(&self) -> CoreResult<Arc<dyn FileOps>> {
+        Ok(Arc::clone(&self.shared.file_ops))
+    }
+
+    fn path_size(&self, path: &std::path::Path) -> Option<PathSize> {
+        let storage = &self.shared.storage;
+        if let Some(result) = storage.tree_covering(path)
+            && let Some(id) = result.tree.find(path)
+            && let Some(node) = result.tree.node(id)
+        {
+            return Some(PathSize {
+                bytes: node.size,
+                items: node.items,
+                modified: node.modified,
+                complete: true,
+            });
+        }
+        Some(storage.measure_path(path, Duration::from_millis(1500)))
+    }
+
+    fn volume_usage(&self, path: &std::path::Path) -> CoreResult<(u64, u64)> {
+        self.shared.storage.provider().volume_usage(path)
+    }
+
+    fn volume_label(&self, path: &std::path::Path) -> Option<String> {
+        let volumes = self.shared.storage.volumes().ok()?;
+        volumes
+            .into_iter()
+            .filter(|v| path.starts_with(&v.mount_point))
+            .max_by_key(|v| v.mount_point.len())
+            .map(|v| v.name)
+    }
+
+    fn same_volume(&self, a: &std::path::Path, b: &std::path::Path) -> Option<bool> {
+        let provider = self.shared.storage.provider();
+        let device_a = provider.metadata(a).ok()?.device;
+        let device_b = provider.metadata(b).ok()?.device;
+        Some(provider.volume_group(device_a).contains(&device_b))
     }
 }
 

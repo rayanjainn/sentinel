@@ -4,8 +4,12 @@
 //! executes through the control traits, measures before/after on the live system and writes the
 //! audit entry. UI buttons and the agent reach exactly this code.
 
+mod files;
 mod process;
 
+pub use files::PathSize;
+
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::action::{
@@ -15,13 +19,43 @@ use crate::action::{
 use crate::audit::{AuditEntry, AuditStatus, AuditStore};
 use crate::error::{CoreResult, SentinelError};
 use crate::model::{Pid, Platform, ProcessInfo};
-use crate::provider::ProcessControl;
+use crate::provider::{FileOps, ProcessControl};
 use crate::service::tokens::{TOKEN_TTL, TokenStore};
 use crate::util::now_ms;
 
 /// Live-state lookups the action pipeline needs from the runtime.
 pub trait ActionContext: Send + Sync {
     fn lookup_process(&self, pid: Pid) -> CoreResult<ProcessInfo>;
+
+    fn file_ops(&self) -> CoreResult<Arc<dyn FileOps>> {
+        Err(SentinelError::Unavailable {
+            feature: "file actions".to_owned(),
+            reason: "no file operations are available in this context".to_owned(),
+        })
+    }
+
+    /// Size of a path from the latest covering scan, else a bounded walk.
+    fn path_size(&self, _path: &Path) -> Option<PathSize> {
+        None
+    }
+
+    /// (total, available) bytes of the volume holding `path`.
+    fn volume_usage(&self, _path: &Path) -> CoreResult<(u64, u64)> {
+        Err(SentinelError::Unavailable {
+            feature: "volume usage".to_owned(),
+            reason: "no storage provider in this context".to_owned(),
+        })
+    }
+
+    /// Display name of the volume holding `path` ("Macintosh HD").
+    fn volume_label(&self, _path: &Path) -> Option<String> {
+        None
+    }
+
+    /// Whether two paths live on the same volume; `None` when unknown.
+    fn same_volume(&self, _a: &Path, _b: &Path) -> Option<bool> {
+        None
+    }
 }
 
 pub struct ActionServiceConfig {
@@ -112,12 +146,11 @@ impl ActionService {
             Action::SetProcessPriority { target, nice } => {
                 process::preview_priority(self, target, nice)
             }
-            Action::TrashPaths { .. } | Action::MovePaths { .. } => {
-                Err(SentinelError::Unavailable {
-                    feature: "file actions".to_owned(),
-                    reason: "moving files is not enabled in this build yet".to_owned(),
-                })
-            }
+            Action::TrashPaths { paths } => files::preview_trash(self, paths),
+            Action::MovePaths {
+                paths,
+                destination_dir,
+            } => files::preview_move(self, paths, destination_dir),
             Action::AddFirewallRule { .. } | Action::RemoveFirewallRule { .. } => {
                 Err(SentinelError::Unavailable {
                     feature: "firewall actions".to_owned(),
@@ -138,6 +171,11 @@ impl ActionService {
             Action::SetProcessPriority { target, nice } => {
                 process::execute_priority(self, preview, target, *nice)
             }
+            Action::TrashPaths { paths } => files::execute_trash(self, preview, paths),
+            Action::MovePaths {
+                paths,
+                destination_dir,
+            } => files::execute_move(self, preview, paths, destination_dir),
             other => Execution::failed(
                 preview.title.clone(),
                 SentinelError::invalid(format!(
