@@ -1,6 +1,8 @@
+mod firewall;
 mod network;
 mod permissions;
 mod process;
+mod sock_diag;
 mod storage;
 
 use std::path::Path;
@@ -13,7 +15,7 @@ use crate::platform::sys_resources::{ResourceExtras, SysResources, basic_memory}
 use crate::platform::{PlatformConfig, Providers, proc_table::ProcTable};
 use crate::provider::ProcessProvider;
 
-pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
+pub(crate) fn providers(config: &PlatformConfig) -> Providers {
     Providers {
         resources: Box::new(SysResources::new(LinuxResources::new())),
         processes: process_provider(),
@@ -22,6 +24,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         permissions: Arc::new(permissions::LinuxPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
         storage: Arc::new(storage::LinuxStorage),
+        firewall: Arc::new(firewall::LinuxFirewall::new(config)),
     }
 }
 

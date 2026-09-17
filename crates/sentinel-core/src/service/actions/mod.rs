@@ -5,6 +5,7 @@
 //! audit entry. UI buttons and the agent reach exactly this code.
 
 mod files;
+mod firewall;
 mod process;
 
 pub use files::PathSize;
@@ -50,6 +51,18 @@ pub trait ActionContext: Send + Sync {
     /// Display name of the volume holding `path` ("Macintosh HD").
     fn volume_label(&self, _path: &Path) -> Option<String> {
         None
+    }
+
+    fn firewall(&self) -> CoreResult<Arc<crate::service::firewall::FirewallService>> {
+        Err(SentinelError::Unavailable {
+            feature: "firewall".to_owned(),
+            reason: "no firewall in this context".to_owned(),
+        })
+    }
+
+    /// "postgres (PID 1555)" labels for processes whose sockets a firewall target would affect.
+    fn traffic_users(&self, _target: &crate::model::FirewallTarget) -> Vec<String> {
+        Vec::new()
     }
 
     /// Whether two paths live on the same volume; `None` when unknown.
@@ -151,12 +164,10 @@ impl ActionService {
                 paths,
                 destination_dir,
             } => files::preview_move(self, paths, destination_dir),
-            Action::AddFirewallRule { .. } | Action::RemoveFirewallRule { .. } => {
-                Err(SentinelError::Unavailable {
-                    feature: "firewall actions".to_owned(),
-                    reason: "firewall rules are not enabled in this build yet".to_owned(),
-                })
+            Action::AddFirewallRule { target, direction } => {
+                firewall::preview_add(self, target, direction)
             }
+            Action::RemoveFirewallRule { rule_id } => firewall::preview_remove(self, rule_id),
         }
     }
 
@@ -176,14 +187,12 @@ impl ActionService {
                 paths,
                 destination_dir,
             } => files::execute_move(self, preview, paths, destination_dir),
-            other => Execution::failed(
-                preview.title.clone(),
-                SentinelError::invalid(format!(
-                    "{} cannot be executed",
-                    serde_json::to_string(other).unwrap_or_default()
-                )),
-                Vec::new(),
-            ),
+            Action::AddFirewallRule { target, direction } => {
+                firewall::execute_add(self, preview, target, *direction)
+            }
+            Action::RemoveFirewallRule { rule_id } => {
+                firewall::execute_remove(self, preview, rule_id)
+            }
         }
     }
 
@@ -249,6 +258,13 @@ impl ActionCommitter for ActionService {
             OutcomeStatus::Failed => AuditStatus::Failed,
         };
         let audit_id = self.record(&preview, status, &execution)?;
+        if let Action::AddFirewallRule { target, direction } = &preview.action
+            && execution.status == OutcomeStatus::Succeeded
+            && let Ok(firewall) = self.context.firewall()
+            && let Some(rule) = firewall.find(target, *direction)
+        {
+            firewall.set_audit_id(&rule.id, audit_id)?;
+        }
         Ok(ActionOutcome {
             action: preview.action,
             origin: preview.origin,

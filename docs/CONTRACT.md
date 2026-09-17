@@ -205,3 +205,17 @@ Invariant tests (`crates/sentinel-agent/tests/safety.rs`), run with a scripted m
   compiles and renders error states from day one. CI fails while any `not_wired` call remains.
 - **Remote**: no GitHub repo yet. Workflows are written against `rayanjainn/sentinel` and verified
   once pushed.
+
+## Changes since approval (additive)
+
+- `service::SystemQueries` facade and `HomeLocationInput` added before parallel work started;
+  `Origin::Agent` gained `request` (audit trigger text); `CoreState` added in `src-tauri/src/state.rs`.
+- Core (workstream A): `StorageProvider::volume_usage`, plus defaulted `dir_entry_metadata` and
+  `volume_group`; `CoreState.runtime: Arc<CoreRuntime>`; `platform::Providers` built by
+  `platform::current(&PlatformConfig)`; a `native` cargo feature on `sentinel-core` (SQLite audit
+  store, geo DB download) enabled by `src-tauri`, so cross-target checks run with it off;
+  `sysinfo` pinned to 0.38 (0.39 needs rustc 1.95).
+- `commit_action` returns `Ok(ActionOutcome)` for any accepted token; execution failures are
+  reported as `status: failed` with per-item errors, not as `Err`.
+- macOS per-connection traffic comes from the `net.inet.{tcp,udp}.pcblist_n` sysctls rather than a
+  `nettop` stream (which cost ~128% CPU).

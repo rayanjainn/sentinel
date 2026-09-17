@@ -1,4 +1,5 @@
 mod ffi;
+mod firewall;
 mod memory;
 mod network;
 mod permissions;
@@ -13,7 +14,7 @@ use crate::platform::sys_resources::{ResourceExtras, SysResources};
 use crate::platform::{PlatformConfig, Providers, proc_table::ProcTable};
 use crate::provider::ProcessProvider;
 
-pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
+pub(crate) fn providers(config: &PlatformConfig) -> Providers {
     Providers {
         resources: Box::new(SysResources::new(MacResources::new())),
         processes: process_provider(),
@@ -22,6 +23,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         permissions: Arc::new(permissions::MacPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
         storage: Arc::new(storage::MacStorage),
+        firewall: Arc::new(firewall::PfFirewall::new(config)),
     }
 }
 

@@ -318,3 +318,59 @@ fn trashed_temp_file_lands_in_trash_not_unlinked() {
         assert!(path.exists());
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn scan_with_unreadable_directory_completes_and_reports_it() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::Arc;
+
+    struct NullSink;
+    impl sentinel_core::events::EventSink for NullSink {
+        fn emit(&self, _event: sentinel_core::events::CoreEvent) {}
+    }
+
+    let (_dir, providers) = providers();
+    let tree = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(tree.path().join("readable")).expect("mkdir");
+    std::fs::write(tree.path().join("readable/data.bin"), vec![1u8; 200_000]).expect("write");
+    std::fs::create_dir_all(tree.path().join("locked/inner")).expect("mkdir");
+    std::fs::write(
+        tree.path().join("locked/inner/secret.bin"),
+        vec![2u8; 200_000],
+    )
+    .expect("write");
+    std::fs::set_permissions(
+        tree.path().join("locked"),
+        std::fs::Permissions::from_mode(0o000),
+    )
+    .expect("chmod 000");
+
+    let storage =
+        sentinel_core::service::storage::StorageService::new(providers.storage, Arc::new(NullSink));
+    let id = storage
+        .start_scan(sentinel_core::model::ScanRequest {
+            root: tree.path().to_string_lossy().into_owned(),
+            cross_mounts: false,
+        })
+        .expect("start scan");
+    let result = storage.wait_for_scan(&id, Duration::from_secs(60));
+    std::fs::set_permissions(
+        tree.path().join("locked"),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .expect("restore permissions");
+    let summary = result.expect("scan completes despite the unreadable directory");
+    assert!(summary.total_bytes >= 200_000);
+    // SAFETY: geteuid has no preconditions.
+    if unsafe { libc::geteuid() } == 0 {
+        return;
+    }
+    assert!(summary.unreadable_entries >= 1, "{summary:?}");
+    assert!(
+        summary
+            .unreadable_samples
+            .iter()
+            .any(|p| p.ends_with("locked"))
+    );
+}

@@ -21,7 +21,7 @@ pub(crate) fn run_output(program: &str, args: &[&str], operation: &str) -> CoreR
         })
 }
 
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Runs to completion and fails with the tool's stderr when it exits non-zero.
 pub(crate) fn run_status(program: &str, args: &[&str], operation: &str) -> CoreResult<()> {
     let output = run_output(program, args, operation)?;
@@ -40,7 +40,7 @@ pub(crate) fn run_status(program: &str, args: &[&str], operation: &str) -> CoreR
 }
 
 /// Locates an executable on PATH, also checking the sbin directories GUI apps often lack.
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn which(program: &str) -> Option<std::path::PathBuf> {
     #[cfg_attr(windows, allow(unused_mut))]
     let mut dirs: Vec<std::path::PathBuf> = std::env::var_os("PATH")
@@ -70,7 +70,7 @@ pub(crate) fn which(program: &str) -> Option<std::path::PathBuf> {
 }
 
 /// Detached launch for GUI helpers whose exit status is irrelevant (file managers).
-#[allow(dead_code)]
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub(crate) fn spawn_detached(program: &str, args: &[&str], operation: &str) -> CoreResult<()> {
     let child = Command::new(program)
         .args(args)
@@ -87,7 +87,7 @@ pub(crate) fn spawn_detached(program: &str, args: &[&str], operation: &str) -> C
 }
 
 /// Waits for a detached child on a background thread so it never lingers as a zombie.
-#[allow(dead_code)]
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub(crate) fn reap(mut child: std::process::Child) {
     let _ = std::thread::Builder::new()
         .name("sentinel-reaper".into())

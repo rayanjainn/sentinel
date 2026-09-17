@@ -10,6 +10,8 @@ use crate::provider::*;
 
 mod command;
 mod fileops;
+#[cfg(unix)]
+mod firewall_state;
 mod identity;
 mod proc_names;
 mod proc_table;
@@ -53,6 +55,7 @@ pub struct Providers {
     pub permissions: Arc<dyn PermissionProbe>,
     pub file_ops: Arc<dyn FileOps>,
     pub storage: Arc<dyn StorageProvider>,
+    pub firewall: Arc<dyn FirewallProvider>,
 }
 
 pub fn current(config: &PlatformConfig) -> Providers {

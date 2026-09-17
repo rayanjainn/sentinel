@@ -6,7 +6,7 @@ use objc2::rc::{Retained, autoreleasepool};
 use objc2_app_kit::{NSApplicationActivationPolicy, NSRunningApplication};
 
 use super::ffi;
-use crate::error::{CoreResult, SentinelError};
+use crate::error::CoreResult;
 use crate::model::{OpenFile, OpenFileKind, Pid, ProcessIdentity, TerminateMethod};
 use crate::platform::identity::{current_identity, verify_identity};
 use crate::platform::proc_table::{ProcExtra, ProcessExtras};
@@ -207,9 +207,4 @@ impl ProcessControl for MacProcessControl {
     fn set_priority(&self, target: &ProcessIdentity, nice: i32) -> CoreResult<()> {
         set_nice(target, nice)
     }
-}
-
-#[allow(dead_code)]
-fn not_found(pid: Pid) -> SentinelError {
-    SentinelError::ProcessNotFound { pid }
 }

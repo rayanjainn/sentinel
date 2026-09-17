@@ -6,7 +6,10 @@ use std::time::{Duration, Instant};
 
 use super::InterfaceCounters;
 use crate::error::{CoreResult, SentinelError};
-use crate::model::{Pid, RawSocket, TrafficReport, TrafficSource, TransportProtocol};
+use crate::model::{
+    ConnectionTraffic, Pid, ProcessTraffic, RawSocket, TrafficReport, TrafficSource,
+    TransportProtocol,
+};
 use crate::parse::procfs::{self, FdTarget};
 use crate::parse::sockets::{self, ProcNetRow};
 use crate::provider::NetworkProvider;
@@ -121,10 +124,47 @@ impl NetworkProvider for LinuxNetwork {
     }
 
     fn traffic(&mut self) -> CoreResult<TrafficReport> {
+        let Ok(counters) = super::sock_diag::tcp_counters() else {
+            // Kernels without inet_diag (or sandboxes that block netlink) only expose interfaces.
+            return Ok(TrafficReport {
+                source: TrafficSource::InterfaceOnly,
+                connections: Vec::new(),
+                processes: Vec::new(),
+            });
+        };
+        let mut per_process: HashMap<Pid, (u64, u64)> = HashMap::new();
+        let connections = counters
+            .into_iter()
+            .map(|socket| {
+                if let Some(owners) = self.inode_pids.get(&u64::from(socket.inode)) {
+                    for pid in owners {
+                        let entry = per_process.entry(*pid).or_default();
+                        entry.0 += socket.bytes_in;
+                        entry.1 += socket.bytes_out;
+                    }
+                }
+                ConnectionTraffic {
+                    protocol: TransportProtocol::Tcp,
+                    local_addr: normalize(socket.local_addr),
+                    local_port: socket.local_port,
+                    remote_addr: Some(normalize(socket.remote_addr)),
+                    remote_port: Some(socket.remote_port),
+                    bytes_in: socket.bytes_in,
+                    bytes_out: socket.bytes_out,
+                }
+            })
+            .collect();
         Ok(TrafficReport {
-            source: TrafficSource::InterfaceOnly,
-            connections: Vec::new(),
-            processes: Vec::new(),
+            source: TrafficSource::PerConnection,
+            connections,
+            processes: per_process
+                .into_iter()
+                .map(|(pid, (bytes_in, bytes_out))| ProcessTraffic {
+                    pid,
+                    bytes_in,
+                    bytes_out,
+                })
+                .collect(),
         })
     }
 }
