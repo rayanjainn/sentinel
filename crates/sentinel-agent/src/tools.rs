@@ -15,6 +15,7 @@ use sentinel_core::action::Action;
 pub mod paths;
 pub mod read;
 pub mod specs;
+pub mod write;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
