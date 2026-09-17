@@ -6,6 +6,7 @@ import { Segmented } from "../../components/Segmented";
 import { AgentSettingsSection } from "../agent";
 import { useSettings, type SamplingInterval, type ThemePreference } from "../../stores/settings";
 import { PermissionList } from "../permissions/PermissionList";
+import { NetworkSettings } from "./NetworkSettings";
 
 export function SettingsSection({ id, title, description, children }: { id?: string; title: string; description?: string; children: ReactNode }) {
   return (
@@ -31,7 +32,7 @@ export function SettingRow({ label, detail, control }: { label: string; detail?:
   );
 }
 
-export function SettingsView({ extraSections }: { extraSections?: ReactNode }) {
+export function SettingsView() {
   const theme = useSettings((s) => s.theme);
   const setTheme = useSettings((s) => s.setTheme);
   const intervalMs = useSettings((s) => s.intervalMs);
@@ -79,7 +80,7 @@ export function SettingsView({ extraSections }: { extraSections?: ReactNode }) {
           />
         </SettingsSection>
 
-        {extraSections}
+        <NetworkSettings />
 
         <SettingsSection title="Permissions" description="Optional access that makes storage scans and some actions complete.">
           <PermissionList />
