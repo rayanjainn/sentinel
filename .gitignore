@@ -56,5 +56,8 @@ pnpm-debug.log*
 # Tooling output
 graphify-out/
 
+# Locally built installers — real releases come from release.yml, not the repo
+dist-installers/
+
 # Parallel workstream checkouts (git worktree)
 .worktrees/
