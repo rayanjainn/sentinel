@@ -13,8 +13,13 @@ export interface ErrorDescription {
   quiet: boolean;
 }
 
+function isPayload(value: unknown): value is ErrorPayload {
+  return typeof value === "object" && value !== null && "code" in value && "message" in value;
+}
+
 export function toPayload(error: unknown): ErrorPayload {
   if (error instanceof IpcError) return error.payload;
+  if (isPayload(error)) return error;
   const detail = error instanceof Error ? error.message : String(error);
   return { code: "internal", detail, message: detail };
 }
