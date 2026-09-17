@@ -1,9 +1,10 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
 
 import type { ResourceSample } from "../../bindings/ResourceSample";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { LiveChart } from "../../components/charts/LiveChart";
 import { formatPercent } from "../../lib/format";
+import { useElementSize } from "../../lib/motion";
 import { useResources } from "../../stores/resources";
 import { useSettings } from "../../stores/settings";
 import { SERIES } from "../../styles/dataviz";
@@ -52,16 +53,27 @@ const CoreTile = memo(function CoreTile({ index }: { index: number }) {
   );
 });
 
+/** Columns that fit `width` and split `count` tiles into even rows, so no row ends with an orphan. */
+export function balancedColumns(count: number, width: number, minTile: number): number {
+  if (count <= 0) return 1;
+  const maxCols = Math.max(1, Math.min(count, Math.floor(width / minTile)));
+  const rows = Math.ceil(count / maxCols);
+  return Math.ceil(count / rows);
+}
+
 /** One live tile per logical core: tweened value, level bar and a scrolling one-minute sparkline. */
 export function CoreField() {
   const cores = useResources((s) => s.latest?.perCore.length ?? 0);
-  if (cores === 0) return null;
+  const ref = useRef<HTMLDivElement>(null);
+  const { width } = useElementSize(ref);
+  const columns = balancedColumns(cores, width || 1200, cores > 24 ? 132 : 156);
   return (
     <div
+      ref={ref}
       role="list"
       aria-label="Per-core usage"
-      className="grid gap-px overflow-hidden rounded-[8px] border border-line bg-line"
-      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cores > 24 ? 132 : 156}px, 1fr))` }}
+      className={cores === 0 ? "hidden" : "grid gap-px overflow-hidden rounded-[8px] border border-line bg-line"}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {Array.from({ length: cores }, (_, i) => (
         <div role="listitem" key={i} className="contents">
