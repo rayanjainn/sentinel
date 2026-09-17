@@ -16,6 +16,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         processes: process_provider(),
         process_control: Arc::new(process::WindowsProcessControl),
         permissions: Arc::new(permissions::WindowsPermissions),
+        file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
     }
 }
 

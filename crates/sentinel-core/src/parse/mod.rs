@@ -3,3 +3,4 @@
 
 pub mod netsh;
 pub mod procfs;
+pub mod uri;

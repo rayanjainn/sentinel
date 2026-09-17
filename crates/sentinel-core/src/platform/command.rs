@@ -72,15 +72,26 @@ pub(crate) fn which(program: &str) -> Option<std::path::PathBuf> {
 /// Detached launch for GUI helpers whose exit status is irrelevant (file managers).
 #[allow(dead_code)]
 pub(crate) fn spawn_detached(program: &str, args: &[&str], operation: &str) -> CoreResult<()> {
-    Command::new(program)
+    let child = Command::new(program)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map(|_| ())
         .map_err(|err| SentinelError::Unavailable {
             feature: operation.to_owned(),
             reason: format!("could not launch {program}: {err}"),
-        })
+        })?;
+    reap(child);
+    Ok(())
+}
+
+/// Waits for a detached child on a background thread so it never lingers as a zombie.
+#[allow(dead_code)]
+pub(crate) fn reap(mut child: std::process::Child) {
+    let _ = std::thread::Builder::new()
+        .name("sentinel-reaper".into())
+        .spawn(move || {
+            let _ = child.wait();
+        });
 }

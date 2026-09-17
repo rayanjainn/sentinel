@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::provider::*;
 
 mod command;
+mod fileops;
 mod identity;
 mod proc_table;
 mod sys_resources;
@@ -46,6 +47,7 @@ pub struct Providers {
     pub processes: Box<dyn ProcessProvider>,
     pub process_control: Arc<dyn ProcessControl>,
     pub permissions: Arc<dyn PermissionProbe>,
+    pub file_ops: Arc<dyn FileOps>,
 }
 
 pub fn current(config: &PlatformConfig) -> Providers {

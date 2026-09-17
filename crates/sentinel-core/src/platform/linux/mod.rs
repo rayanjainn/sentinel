@@ -17,6 +17,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         processes: process_provider(),
         process_control: Arc::new(process::LinuxProcessControl),
         permissions: Arc::new(permissions::LinuxPermissions),
+        file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
     }
 }
 

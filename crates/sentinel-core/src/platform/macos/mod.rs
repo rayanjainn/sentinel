@@ -17,6 +17,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         processes: process_provider(),
         process_control: Arc::new(process::MacProcessControl),
         permissions: Arc::new(permissions::MacPermissions),
+        file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
     }
 }
 

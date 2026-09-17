@@ -11,7 +11,9 @@ use crate::error::{CoreResult, SentinelError};
 use crate::events::{CoreEvent, EventSink, SamplingConfig, StreamKind};
 use crate::model::*;
 use crate::platform::{self, PlatformConfig, Providers};
-use crate::provider::{PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider};
+use crate::provider::{
+    FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
+};
 use crate::service::actions::ActionContext;
 use crate::service::history::{ProcessHistory, ResourceHistory};
 use crate::service::sampling::clamp_config;
@@ -45,6 +47,7 @@ struct Shared {
     processes: Mutex<ProcessState>,
     process_control: Arc<dyn ProcessControl>,
     permissions: Arc<dyn PermissionProbe>,
+    file_ops: Arc<dyn FileOps>,
 }
 
 pub struct CoreRuntime {
@@ -61,6 +64,7 @@ impl CoreRuntime {
             processes,
             process_control,
             permissions,
+            file_ops,
         } = platform::current(&PlatformConfig {
             data_dir: config.data_dir.clone(),
         });
@@ -83,6 +87,7 @@ impl CoreRuntime {
             }),
             process_control,
             permissions,
+            file_ops,
         });
         let runtime = Arc::new(Self {
             shared: Arc::clone(&shared),
@@ -110,6 +115,29 @@ impl CoreRuntime {
 
     pub fn process_control(&self) -> Arc<dyn ProcessControl> {
         Arc::clone(&self.shared.process_control)
+    }
+
+    pub fn file_ops(&self) -> Arc<dyn FileOps> {
+        Arc::clone(&self.shared.file_ops)
+    }
+
+    pub fn reveal_path(&self, path: &str) -> CoreResult<()> {
+        if path.trim().is_empty() {
+            return Err(SentinelError::invalid("no path given"));
+        }
+        self.shared.file_ops.reveal(std::path::Path::new(path))
+    }
+
+    pub fn reveal_process_executable(&self, pid: Pid) -> CoreResult<()> {
+        let info = self.lookup_process(pid)?;
+        let exe = info.exe.ok_or_else(|| SentinelError::Unavailable {
+            feature: "reveal executable".to_owned(),
+            reason: format!(
+                "the executable path of {} (PID {pid}) is not readable without administrator privileges",
+                info.name
+            ),
+        })?;
+        self.shared.file_ops.reveal(std::path::Path::new(&exe))
     }
 
     pub fn open_permission_settings(&self, kind: PermissionKind) -> CoreResult<()> {
