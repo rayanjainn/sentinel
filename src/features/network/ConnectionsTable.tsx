@@ -11,7 +11,7 @@ import { cx } from "../../lib/cx";
 import { formatBytes, formatCount, formatRate, pluralize } from "../../lib/format";
 import { formatEndpoint, TCP_STATE_LABEL } from "../../lib/net";
 import { useVirtualRows } from "../../lib/virtual";
-import { hostFor } from "../../stores/network";
+import { hostState, useNetwork, type HostState } from "../../stores/network";
 import { groupByProcess, type ProcessGroup } from "./grouping";
 import { processMenu, socketMenu } from "./socketActions";
 import { useNetworkView } from "./viewState";
@@ -124,7 +124,7 @@ const SocketRow = memo(function SocketRow({
   rate,
 }: {
   socket: SocketEntry;
-  host: string | null;
+  host: HostState;
   index: number;
   selected: boolean;
   rate: boolean;
@@ -149,12 +149,16 @@ const SocketRow = memo(function SocketRow({
     >
       {selected && <span className="absolute inset-y-0 left-0 w-0.5 bg-signal" />}
       <div className="min-w-0 truncate pl-8 pr-3">
-        {host ? (
-          <motion.span key={host} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="text-fg" title={host}>
-            {host}
+        {host.state === "resolved" ? (
+          <motion.span key={host.host} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="text-fg" title={host.host}>
+            {host.host}
           </motion.span>
+        ) : host.state === "pending" ? (
+          <span className="text-fg-subtle">Resolving…</span>
         ) : (
-          <span className="text-fg-subtle">{s.remoteAddr ? "Resolving…" : "—"}</span>
+          <span className="text-fg-subtle" title="The address has no reverse DNS name">
+            {s.remoteAddr ? "No hostname" : "—"}
+          </span>
         )}
       </div>
       <div className="num truncate px-3 text-fg" title={s.remoteAddr ?? undefined}>
@@ -214,6 +218,8 @@ export function ConnectionsTable({
   }, [sockets, expandedGroups, forceExpand]);
 
   const { start, end, totalHeight } = useVirtualRows(scrollRef, rows.length, ROW_HEIGHT, { headerOffset: HEADER_HEIGHT });
+  // Snapshots arrive every sampling interval, so their timestamp is a render-safe clock.
+  const now = useNetwork((s) => s.tsMs);
 
   if (sockets.length === 0) {
     return (
@@ -255,7 +261,7 @@ export function ConnectionsTable({
               <SocketRow
                 key={row.socket.id}
                 socket={row.socket}
-                host={hostFor(row.socket, hostnames)}
+                host={hostState(row.socket, hostnames, now)}
                 index={index}
                 selected={row.socket.id === selectedSocketId}
                 rate={rate}

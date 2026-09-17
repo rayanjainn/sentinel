@@ -124,6 +124,23 @@ export const useNetwork = create<NetworkState>((set, get) => ({
   },
 }));
 
+/** How long a new connection shows "Resolving…" before an absent name reads as "No hostname". */
+export const RESOLVE_GRACE_MS = 15_000;
+
+export type HostState = { state: "resolved"; host: string } | { state: "pending" } | { state: "none" };
+
+/**
+ * Distinguishes a reverse-DNS lookup still in flight from one that finished without a name, so
+ * addresses without a PTR record do not show "Resolving…" forever.
+ */
+export function hostState(socket: SocketEntry, hostnames: Map<string, string | null>, nowMs: number): HostState {
+  const host = hostFor(socket, hostnames);
+  if (host) return { state: "resolved", host };
+  if (!socket.remoteAddr) return { state: "none" };
+  if (hostnames.has(socket.remoteAddr)) return { state: "none" };
+  return nowMs - socket.firstSeenMs < RESOLVE_GRACE_MS ? { state: "pending" } : { state: "none" };
+}
+
 /** Resolved hostname for an IP, preferring live reverse-DNS events over the last snapshot. */
 export function hostFor(socket: SocketEntry, hostnames: Map<string, string | null>): string | null {
   if (socket.remoteHost) return socket.remoteHost;
