@@ -73,7 +73,7 @@ export function Dialog({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <motion.div
-            className="absolute inset-0 bg-[rgb(var(--shadow-tint)/0.55)]"
+            className="absolute inset-0 bg-[rgb(var(--shadow-tint)/0.5)] [[data-theme=light]_&]:bg-[rgb(var(--shadow-tint)/0.28)]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
