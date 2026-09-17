@@ -99,7 +99,8 @@ export function layoutTreemap(
   return laidOut
     .descendants()
     .filter((d): d is HierarchyRectangularNode<TreeNode> => d.depth === 1 || d.depth === 2)
-    .filter((d) => d.x1 - d.x0 >= 1 && d.y1 - d.y0 >= 1)
+    // Grandchildren smaller than a few pixels cannot be seen or pointed at; skip their DOM nodes.
+    .filter((d) => d.x1 - d.x0 >= 1 && d.y1 - d.y0 >= 1 && (d.depth === 1 || (d.x1 - d.x0) * (d.y1 - d.y0) >= 6))
     .map((d) => ({
       node: d.data,
       depth: d.depth as 1 | 2,
