@@ -1,6 +1,7 @@
 //! `AgentBackend` adapters, one per provider wire format, plus the helpers they share.
 
 pub mod anthropic;
+pub mod catalog;
 pub mod gemini;
 pub mod http;
 pub mod ollama;

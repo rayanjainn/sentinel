@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use tokio::sync::mpsc::unbounded_channel;
-use tokio_util::sync::CancellationToken;
+pub use tokio_util::sync::CancellationToken;
 
 use sentinel_core::action::{Action, ActionPreparer, Origin};
 use sentinel_core::{CoreResult, ErrorPayload, SentinelError};
