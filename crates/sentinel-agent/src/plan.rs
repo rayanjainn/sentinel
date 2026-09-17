@@ -32,6 +32,10 @@ pub enum PlanActionState {
     Succeeded {
         outcome: ActionOutcome,
     },
+    /// Committed, but some items failed (see `outcome.items[].error`).
+    PartiallySucceeded {
+        outcome: ActionOutcome,
+    },
     Failed {
         error: ErrorPayload,
     },

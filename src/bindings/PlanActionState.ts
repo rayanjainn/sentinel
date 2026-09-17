@@ -2,4 +2,4 @@
 import type { ActionOutcome } from "./ActionOutcome";
 import type { ErrorPayload } from "./ErrorPayload";
 
-export type PlanActionState = { "state": "pending" } | { "state": "rejected" } | { "state": "executing" } | { "state": "succeeded", outcome: ActionOutcome, } | { "state": "failed", error: ErrorPayload, } | { "state": "expired" };
+export type PlanActionState = { "state": "pending" } | { "state": "rejected" } | { "state": "executing" } | { "state": "succeeded", outcome: ActionOutcome, } | { "state": "partiallySucceeded", outcome: ActionOutcome, } | { "state": "failed", error: ErrorPayload, } | { "state": "expired" };

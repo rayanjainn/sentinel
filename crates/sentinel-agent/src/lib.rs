@@ -14,6 +14,7 @@ pub mod backend;
 pub mod conversation;
 pub mod engine;
 pub mod events;
+pub mod executor;
 pub mod plan;
 pub mod prompt;
 pub mod providers;

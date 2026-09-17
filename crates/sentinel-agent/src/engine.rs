@@ -151,7 +151,8 @@ impl AgentEngine {
             .map(|a| {
                 let mut row = json!({"action": a.preview.title, "reason": a.rationale});
                 match &a.state {
-                    PlanActionState::Succeeded { outcome } => {
+                    PlanActionState::Succeeded { outcome }
+                    | PlanActionState::PartiallySucceeded { outcome } => {
                         row["result"] = json!("executed");
                         row["status"] = json!(outcome.status);
                         row["summary"] = json!(outcome.summary);
