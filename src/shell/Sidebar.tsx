@@ -8,11 +8,17 @@ import { useResources } from "../stores/resources";
 import { useSettings } from "../stores/settings";
 import { NAV_ITEMS } from "./navigation";
 
+/** "macOS 26.6.2" rather than "Darwin macOS 26.6.2" when the version string already names the OS. */
+export function osLabel(name: string, version: string | null): string {
+  if (!version) return name;
+  return /[a-z]/i.test(version) ? version : `${name} ${version}`;
+}
+
 export function Sidebar() {
   const view = useSettings((s) => s.view);
   const setView = useSettings((s) => s.setView);
   const hostname = useResources((s) => s.systemInfo?.hostname ?? null);
-  const osName = useResources((s) => (s.systemInfo ? `${s.systemInfo.osName} ${s.systemInfo.osVersion ?? ""}`.trim() : null));
+  const osName = useResources((s) => (s.systemInfo ? osLabel(s.systemInfo.osName, s.systemInfo.osVersion) : null));
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
