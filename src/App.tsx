@@ -1,9 +1,11 @@
 import { MotionConfig } from "motion/react";
 import { useEffect } from "react";
 
+import { ContextMenuHost } from "./components/ContextMenu";
 import { Toaster } from "./components/Toaster";
 import { ActionDialog } from "./features/actions";
 import { Onboarding } from "./features/onboarding/Onboarding";
+import { PriorityDialog } from "./features/processes/PriorityDialog";
 import { startSampling } from "./lib/sampling";
 import { AppShell } from "./shell/AppShell";
 import { HeaderSlotProvider } from "./shell/HeaderSlot";
@@ -27,7 +29,9 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <HeaderSlotProvider>{onboarded ? <AppShell /> : <Onboarding />}</HeaderSlotProvider>
+      <PriorityDialog />
       <ActionDialog />
+      <ContextMenuHost />
       <Toaster />
     </MotionConfig>
   );
