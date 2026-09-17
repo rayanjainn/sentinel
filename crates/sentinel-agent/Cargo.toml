@@ -14,6 +14,13 @@ thiserror.workspace = true
 ts-rs.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
+tokio-util = "0.7"
+uuid = { version = "1", features = ["v4"] }
+bytes = "1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2", "charset"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["net", "io-util"] }
 
 [lints]
 workspace = true

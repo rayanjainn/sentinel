@@ -13,5 +13,6 @@
 pub mod backend;
 pub mod events;
 pub mod plan;
+pub mod providers;
 pub mod settings;
 pub mod tools;
