@@ -1,4 +1,4 @@
-import { ArrowCounterClockwise, LockKey, ShieldWarning, Warning, WarningOctagon } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, Info, LockKey, ShieldWarning, Warning, WarningOctagon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { ActionPreview } from "../../bindings/ActionPreview";
@@ -25,6 +25,12 @@ function TargetRow({ target }: { target: PreviewTarget }) {
         )}
       </div>
       {target.detail && <span className="selectable break-all text-[12px] text-fg-muted">{target.detail}</span>}
+      {target.safetyNote && (
+        <span className="flex items-start gap-1.5 text-[12px] text-fg-muted">
+          <Info size={12} weight="bold" className="mt-0.5 shrink-0 text-fg-subtle" />
+          {target.safetyNote}
+        </span>
+      )}
       {target.problem && (
         <span className="flex items-center gap-1.5 text-[12px] text-warn">
           <Warning size={12} weight="bold" />
