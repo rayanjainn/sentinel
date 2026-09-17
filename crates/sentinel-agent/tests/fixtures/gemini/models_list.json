@@ -1,0 +1,45 @@
+{
+  "models": [
+    {
+      "name": "models/gemini-3.8-flash",
+      "version": "3.8",
+      "displayName": "Gemini 3.8 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens", "createCachedContent", "batchGenerateContent"]
+    },
+    {
+      "name": "models/gemini-3.5-flash-lite",
+      "version": "3.5",
+      "displayName": "Gemini 3.5 Flash-Lite",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 65536,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-embedding-001",
+      "version": "001",
+      "displayName": "Gemini Embedding 001",
+      "inputTokenLimit": 2048,
+      "outputTokenLimit": 1,
+      "supportedGenerationMethods": ["embedContent", "countTextTokens"]
+    },
+    {
+      "name": "models/gemma-3-27b-it",
+      "version": "001",
+      "displayName": "Gemma 3 27B",
+      "inputTokenLimit": 131072,
+      "outputTokenLimit": 8192,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    },
+    {
+      "name": "models/gemini-3.1-flash-image",
+      "version": "3.1",
+      "displayName": "Gemini 3.1 Flash Image",
+      "inputTokenLimit": 65536,
+      "outputTokenLimit": 32768,
+      "supportedGenerationMethods": ["generateContent", "countTokens"]
+    }
+  ],
+  "nextPageToken": ""
+}

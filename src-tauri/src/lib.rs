@@ -1,4 +1,6 @@
+mod agent_state;
 mod commands;
+mod secrets;
 mod state;
 
 use commands::{actions, agent, firewall, network, process, storage, system};
@@ -11,6 +13,7 @@ pub fn run() {
         .setup(|app| {
             let core = state::build(app.handle())?;
             app.manage(core);
+            app.manage(agent_state::AgentState::load(app.handle())?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

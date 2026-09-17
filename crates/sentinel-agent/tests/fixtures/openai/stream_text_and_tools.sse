@@ -1,0 +1,22 @@
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"content":"Looking at who "},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"content":"owns port 5432."},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_port","type":"function","function":{"name":"find_port_owner","arguments":""}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"po"}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"rt\": 5432}"}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"id":"call_sockets","type":"function","function":{"name":"list_network_sockets","arguments":""}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"{\"state\":\"listen\"}"}}]},"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":null}
+
+data: {"id":"chatcmpl-9Sen","object":"chat.completion.chunk","created":1757800000,"model":"gpt-5.6-terra","choices":[],"usage":{"prompt_tokens":2410,"completion_tokens":61,"total_tokens":2471}}
+
+data: [DONE]
+

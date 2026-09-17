@@ -1,0 +1,33 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Two caches have not been touched in over 30 days.",
+            "thought": false
+          },
+          {
+            "functionCall": {
+              "name": "move_to_trash",
+              "args": {
+                "paths": ["/Users/me/Library/Caches/com.old.app"],
+                "reason": "2.3 GB, last used 47 days ago"
+              }
+            },
+            "thoughtSignature": "CiQBSigNoId"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 3300,
+    "candidatesTokenCount": 52,
+    "totalTokenCount": 3352
+  },
+  "modelVersion": "gemini-3.8-flash"
+}
