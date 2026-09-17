@@ -4,6 +4,7 @@
 pub mod netsh;
 pub mod pcblist;
 pub mod procfs;
+pub mod sock_diag;
 pub mod sockets;
 pub mod uri;
 pub mod zonetab;

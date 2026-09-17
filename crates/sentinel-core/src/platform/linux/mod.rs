@@ -2,6 +2,7 @@ mod firewall;
 mod network;
 mod permissions;
 mod process;
+mod sock_diag;
 mod storage;
 
 use std::path::Path;
