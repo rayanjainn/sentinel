@@ -108,9 +108,10 @@ A searchable glossary list in Settings, generated from the same module, so nothi
   Storage ("85 GB used of 228 GB; caches and build folders account for 12 GB").
 - **Storage categories explained in place** — what each cache is for and what regenerates it.
 - **Units spelled out** in tooltips everywhere, compact in tables; never mix bytes and bits.
-- Contract fields the frontend asked for: `SocketEntry.startTime` (so actions skip a lookup),
-  `ItemOutcome.path` (so batch results map to rows exactly), and explicit byte-per-second naming or
-  documentation on throughput fields.
+- Contract fields the frontend asked for: `SocketEntry.processStartTime` (named to avoid colliding
+  with the process's own `startTime`; so actions skip a lookup), `ItemOutcome.path` (so batch
+  results map to rows exactly), and doc comments stating byte-per-second (not bits) and interface
+  scope on the throughput fields, surfaced as JSDoc on the generated TS rather than a rename.
 
 ## 5. Testing
 
@@ -120,3 +121,33 @@ A searchable glossary list in Settings, generated from the same module, so nothi
   (test fails when a new field is added without one).
 - No invented data: a fixture with an unknown binary must produce an "unrecognised" explanation, not
   a fabricated description.
+
+## 6. Implementation notes (added once built)
+
+- **Allocated vs apparent file size** turned into one glossary entry, `allocatedSize` ("Size on
+  disk"), not two. Every size Sentinel shows anywhere (treemap, largest files, folder contents) is
+  the on-disk allocation (`st_blocks` / `GetCompressedFileSize`) — the app never separately reads or
+  displays a file's raw byte count, so a distinct "apparent size" entry would explain a number
+  nothing on screen shows. The one entry states the distinction in its own definition instead. This
+  also fixed a real pre-existing mislabel: the treemap hover panel and the largest-files column
+  called this number "Exact size", which is not what it is; both now say "Size on disk".
+- **Grouping by app in the process table** is a third table layout, "Grouped", alongside the
+  existing List and Tree — not a modifier checkbox on List. Tree mode already visually nests most
+  Chromium/Electron helpers under their app because the OS parents them there; "Grouped" additionally
+  catches helpers the OS does not parent under their app (macOS WebKit's XPC services are children of
+  `launchd`, not of Safari) by grouping on the classifier's `app_name` instead of `ppid`. An app with
+  only one recognised process is shown as a normal row, never a one-item group.
+- **The confirm dialog's safety sentence** is not restated independently on the frontend: the
+  backend attaches the exact same `quit_note` text to `PreviewTarget.safety_note` that
+  `ProcessDetail.explanation.quit_note` carries for the drawer, computed once in
+  `service::actions::process::process_target`. `ActionPreviewBody` renders it, which the agent's
+  plan cards reuse automatically since they render the same component — no separate wiring needed
+  there.
+- **Per-app network grouping** reuses `SocketEntry.appName` (additive backend field, mirroring the
+  process table's `summary.appName`) rather than a client-side join against the process store, so it
+  works even when the Processes view has never been opened this session.
+- **Glossary completeness** is a static-analysis test, not a DOM crawl: it asserts every field
+  `docs/PLAIN_LANGUAGE.md` §3 names is a real entry, and that every entry is referenced somewhere in
+  the source (an id nothing renders fails the build). Catching "a typo referencing a nonexistent id"
+  is left to TypeScript itself — every call site is typed against the `GlossaryId` union, so that
+  half of "completeness" is a compile error, not a test.
