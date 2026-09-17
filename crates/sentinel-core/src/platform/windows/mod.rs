@@ -1,3 +1,4 @@
+mod firewall;
 mod handle;
 mod handles;
 mod network;
@@ -21,6 +22,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         permissions: Arc::new(permissions::WindowsPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
         storage: Arc::new(storage::WindowsStorage::default()),
+        firewall: Arc::new(firewall::WindowsFirewall),
     }
 }
 

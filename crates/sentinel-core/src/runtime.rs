@@ -15,6 +15,7 @@ use crate::provider::{
     FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
 };
 use crate::service::actions::{ActionContext, PathSize};
+use crate::service::firewall::FirewallService;
 use crate::service::history::{ProcessHistory, ResourceHistory};
 use crate::service::network::NetworkMonitor;
 use crate::service::network::dns::ReverseDns;
@@ -63,6 +64,7 @@ struct Shared {
     permissions: Arc<dyn PermissionProbe>,
     file_ops: Arc<dyn FileOps>,
     storage: Arc<StorageService>,
+    firewall: Arc<FirewallService>,
 }
 
 pub struct CoreRuntime {
@@ -82,6 +84,7 @@ impl CoreRuntime {
             permissions,
             file_ops,
             storage,
+            firewall,
         } = platform::current(&PlatformConfig {
             data_dir: config.data_dir.clone(),
         });
@@ -89,6 +92,10 @@ impl CoreRuntime {
         let geo = Arc::new(GeoDb::open(&config.data_dir.join("geo")));
         let dns = Arc::new(ReverseDns::new(Arc::clone(&sink)));
         let storage = StorageService::new(storage, Arc::clone(&sink));
+        let firewall = Arc::new(FirewallService::new(
+            firewall,
+            config.data_dir.join("firewall").join("rules.json"),
+        ));
         let shared = Arc::new(Shared {
             sink,
             config: Mutex::new(SamplingConfig::default()),
@@ -119,6 +126,7 @@ impl CoreRuntime {
             permissions,
             file_ops,
             storage,
+            firewall,
         });
         let runtime = Arc::new(Self {
             shared: Arc::clone(&shared),
@@ -272,6 +280,44 @@ impl ActionContext for CoreRuntime {
             .map(|v| v.name)
     }
 
+    fn firewall(&self) -> CoreResult<Arc<FirewallService>> {
+        Ok(Arc::clone(&self.shared.firewall))
+    }
+
+    fn traffic_users(&self, target: &FirewallTarget) -> Vec<String> {
+        let Ok(snapshot) = self.network_snapshot() else {
+            return Vec::new();
+        };
+        let mut users: Vec<String> = snapshot
+            .sockets
+            .iter()
+            .filter(|socket| match target {
+                FirewallTarget::RemoteIp { ip } => {
+                    let wanted = ip.parse::<std::net::IpAddr>().ok();
+                    socket
+                        .remote_addr
+                        .as_deref()
+                        .and_then(|r| r.parse::<std::net::IpAddr>().ok())
+                        .is_some_and(|r| Some(r) == wanted)
+                }
+                FirewallTarget::LocalPort { port, protocol } => {
+                    socket.local_port == *port && socket.protocol == *protocol
+                }
+            })
+            .filter_map(|socket| {
+                let pid = socket.pid?;
+                Some(match &socket.process_name {
+                    Some(name) => format!("{name} (PID {pid})"),
+                    None => format!("PID {pid}"),
+                })
+            })
+            .collect();
+        users.sort();
+        users.dedup();
+        users.truncate(5);
+        users
+    }
+
     fn same_volume(&self, a: &std::path::Path, b: &std::path::Path) -> Option<bool> {
         let provider = self.shared.storage.provider();
         let device_a = provider.metadata(a).ok()?.device;
@@ -389,13 +435,6 @@ fn interval(shared: &Shared) -> Duration {
     Duration::from_millis(u64::from(shared.config.lock().interval_ms))
 }
 
-fn pending(feature: &str) -> SentinelError {
-    SentinelError::Unavailable {
-        feature: feature.to_owned(),
-        reason: "this part of the core runtime has not been enabled in this build".to_owned(),
-    }
-}
-
 impl SystemQueries for CoreRuntime {
     fn system_info(&self) -> SystemInfo {
         self.shared.system_info.clone()
@@ -482,11 +521,11 @@ impl SystemQueries for CoreRuntime {
     }
 
     fn firewall_status(&self) -> FirewallStatus {
-        self.shared.permissions.status().firewall
+        self.shared.firewall.status()
     }
 
     fn firewall_rules(&self) -> CoreResult<Vec<FirewallRule>> {
-        Err(pending("firewall rules"))
+        self.shared.firewall.list()
     }
 
     fn volumes(&self) -> CoreResult<Vec<VolumeInfo>> {
