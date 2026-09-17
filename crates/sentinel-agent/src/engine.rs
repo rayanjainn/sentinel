@@ -313,6 +313,8 @@ impl AgentEngine {
         let tools = specs::definitions();
         // Writes are accepted only after read results reached the model in an earlier round.
         let mut grounded = false;
+        // Small local models sometimes write a tool call as prose; they get one reminder per turn.
+        let mut nudged = false;
         let max_rounds = parts.config.max_tool_rounds.max(1);
 
         for round in 0..max_rounds {
@@ -402,6 +404,29 @@ impl AgentEngine {
                 turn.explanation.push(text.trim().to_owned());
             }
             if calls.is_empty() {
+                let described_write = !nudged
+                    && grounded
+                    && turn.proposed.is_empty()
+                    && round + 1 < max_rounds
+                    && crate::tools::TOOL_ACCESS
+                        .iter()
+                        .any(|(name, access)| *access == ToolAccess::Write && text.contains(name));
+                if described_write {
+                    nudged = true;
+                    turn.explanation.pop();
+                    let _ = parts.store.with(&conversation_id, |c| {
+                        if matches!(c.transcript.last(), Some(TranscriptItem::Assistant { .. })) {
+                            c.transcript.pop();
+                        }
+                        c.messages.push(ChatMessage {
+                            role: Role::User,
+                            content: vec![ContentBlock::Text {
+                                text: prompt::WRITE_TOOL_NUDGE.to_owned(),
+                            }],
+                        });
+                    });
+                    continue;
+                }
                 return Finish::Done(response.stop_reason);
             }
 

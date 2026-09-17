@@ -863,3 +863,57 @@ async fn edits_can_only_narrow_a_proposal() {
     assert_eq!(h.actions.commit_count(), 0);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+async fn a_change_written_as_text_gets_one_nudge_to_use_the_tool() {
+    let h = Harness::scripted(
+        ProviderId::Ollama,
+        vec![
+            reply(vec![tool("r1", "list_processes", json!({}))]),
+            reply(vec![text("Plan: 1. `terminate_process(pid=4821)`")]),
+            reply(vec![tool(
+                "w1",
+                "terminate_process",
+                json!({"pid": HOG_PID, "reason": "97% CPU"}),
+            )]),
+            reply(vec![text("Proposed stopping hog for your approval.")]),
+        ],
+    );
+    h.send("fix my CPU").await.unwrap();
+    assert_eq!(h.backend.requests.lock().unwrap().len(), 4);
+    let plan = h.only_plan();
+    assert_eq!(plan.actions.len(), 1);
+    assert!(
+        !plan.explanation.contains("terminate_process("),
+        "{}",
+        plan.explanation
+    );
+    assert_eq!(h.actions.commit_count(), 0);
+}
+
+#[tokio::test]
+async fn the_nudge_is_sent_at_most_once_and_never_without_live_data() {
+    let stubborn = Harness::scripted(
+        ProviderId::Gemini,
+        vec![
+            reply(vec![tool("r1", "list_processes", json!({}))]),
+            reply(vec![text("Call terminate_process for PID 4821.")]),
+            reply(vec![text("Again: terminate_process 4821.")]),
+            reply(vec![text("unreachable")]),
+        ],
+    );
+    stubborn.send("fix my CPU").await.unwrap();
+    assert_eq!(stubborn.backend.requests.lock().unwrap().len(), 3);
+    assert!(stubborn.proposed_plans().is_empty());
+    assert_eq!(stubborn.actions.prepare_count(), 0);
+
+    let ungrounded = Harness::scripted(
+        ProviderId::Anthropic,
+        vec![
+            reply(vec![text("I would terminate_process 4821.")]),
+            reply(vec![text("unreachable")]),
+        ],
+    );
+    ungrounded.send("fix my CPU").await.unwrap();
+    assert_eq!(ungrounded.backend.requests.lock().unwrap().len(), 1);
+}

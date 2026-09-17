@@ -25,6 +25,9 @@ Answer questions directly and concisely. Use Markdown for short lists or tables 
     )
 }
 
+/// Sent once per turn when a model writes a write tool call as text instead of calling it.
+pub const WRITE_TOOL_NUDGE: &str = "You described a change as text but did not call the write tool, so the user has nothing to approve. Call the write tool now for each change you recommend (one call per action, each with a reason), or say that no change is needed.";
+
 /// Message fed back to the model after the user runs a plan, carrying the measured outcomes.
 pub fn execution_report(outcomes_json: &str) -> String {
     format!(
