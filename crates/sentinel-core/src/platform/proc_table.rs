@@ -31,6 +31,9 @@ pub(crate) trait ProcessExtras: Send {
 /// Smoothing factor for a ~10 sample time constant.
 const EMA_ALPHA: f32 = 0.095;
 const USER_LIST_RETRY: Duration = Duration::from_secs(30);
+/// Thread, handle and priority details change slowly and cost a syscall or two per process, so
+/// each process refreshes them at most this often (new processes immediately).
+const EXTRA_MAX_AGE: Duration = Duration::from_secs(3);
 
 pub(crate) struct ProcTable<E: ProcessExtras> {
     system: System,
@@ -39,6 +42,8 @@ pub(crate) struct ProcTable<E: ProcessExtras> {
     extras: E,
     /// pid → (start_time, smoothed cpu)
     ema: HashMap<Pid, (u64, f32)>,
+    /// pid → (start_time, fetched at, details)
+    extra_cache: HashMap<Pid, (u64, Instant, ProcExtra)>,
     logical_cores: u32,
     total_memory: u64,
 }
@@ -70,6 +75,7 @@ impl<E: ProcessExtras> ProcTable<E> {
             users_refreshed: Instant::now(),
             extras,
             ema: HashMap::new(),
+            extra_cache: HashMap::new(),
             logical_cores,
             total_memory,
         }
@@ -89,6 +95,20 @@ impl<E: ProcessExtras> ProcTable<E> {
                 .map(|user| user.name().to_owned());
         }
         None
+    }
+
+    fn cached_extra(&mut self, pid: Pid, start_time: u64, fresh: bool) -> ProcExtra {
+        if !fresh
+            && let Some((cached_start, at, extra)) = self.extra_cache.get(&pid)
+            && *cached_start == start_time
+            && at.elapsed() < EXTRA_MAX_AGE
+        {
+            return *extra;
+        }
+        let extra = self.extras.extra(pid);
+        self.extra_cache
+            .insert(pid, (start_time, Instant::now(), extra));
+        extra
     }
 
     fn build_info(&mut self, pid: sysinfo::Pid) -> Option<ProcessInfo> {
@@ -119,7 +139,7 @@ impl<E: ProcessExtras> ProcTable<E> {
             _ => cpu,
         };
         self.ema.insert(pid_u32, (start_time, avg));
-        let extra = self.extras.extra(pid_u32);
+        let extra = self.cached_extra(pid_u32, start_time, false);
 
         Some(ProcessInfo {
             pid: pid_u32,
@@ -156,6 +176,7 @@ impl<E: ProcessExtras> ProcessProvider for ProcTable<E> {
         }
         let live: std::collections::HashSet<Pid> = processes.iter().map(|p| p.pid).collect();
         self.ema.retain(|pid, _| live.contains(pid));
+        self.extra_cache.retain(|pid, _| live.contains(pid));
         processes.sort_unstable_by_key(|p| p.pid);
         Ok(ProcessSnapshot {
             ts_ms: now_ms(),
@@ -172,6 +193,7 @@ impl<E: ProcessExtras> ProcessProvider for ProcTable<E> {
             true,
             refresh_kind(),
         );
+        self.extra_cache.remove(&pid);
         self.build_info(spid)
             .ok_or(SentinelError::ProcessNotFound { pid })
     }
