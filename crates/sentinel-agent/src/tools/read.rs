@@ -170,7 +170,8 @@ impl Args {
                 "`{key}` must be at most {max}"
             )));
         }
-        if let (Some(allowed), Some(v)) = (schema["enum"].as_array(), self.string(key)?)
+        if let Some(allowed) = schema["enum"].as_array()
+            && let Some(v) = self.string(key)?
             && !allowed.iter().any(|a| a.as_str() == Some(v.as_str()))
         {
             return Err(SentinelError::invalid(format!(
