@@ -1,5 +1,6 @@
-import type { Os } from "./platform";
-import { LATEST_RELEASE_API, LATEST_RELEASE_URL } from "./site";
+// Explicit .ts extensions let Node's built-in test runner load this module directly.
+import type { Os } from "./platform.ts";
+import { LATEST_RELEASE_API, LATEST_RELEASE_URL } from "./site.ts";
 
 export type AssetKey =
   | "macos-arm64"
