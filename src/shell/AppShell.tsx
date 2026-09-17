@@ -6,6 +6,7 @@ import { AuditLogView } from "../features/agent";
 import { NetworkView } from "../features/network/NetworkView";
 import { ProcessesView } from "../features/processes/ProcessesView";
 import { ResourcesView } from "../features/resources/ResourcesView";
+import { StorageView } from "../features/storage/StorageView";
 import { SettingsView } from "../features/settings/SettingsView";
 import type { ViewId } from "../stores/settings";
 import { useSettings } from "../stores/settings";
@@ -25,6 +26,7 @@ const VIEWS: Partial<Record<ViewId, ComponentType>> = {
   processes: ProcessesView,
   network: NetworkView,
   resources: ResourcesView,
+  storage: StorageView,
   activity: ActivityView,
   settings: SettingsView,
 };
