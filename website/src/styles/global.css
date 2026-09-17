@@ -160,6 +160,10 @@ samp {
   letter-spacing: -0.03em;
 }
 
+.section-title + .section-lede {
+  margin-top: 20px;
+}
+
 .section-lede {
   max-width: 56ch;
   color: var(--fg-muted);

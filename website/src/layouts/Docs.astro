@@ -465,6 +465,12 @@ const currentLabel = ordered[position]?.data.navTitle ?? title;
     vertical-align: top;
   }
 
+  /* Identifiers and file names stay intact in tables; the table scrolls sideways instead. */
+  .prose :global(td code) {
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
   .prose :global(th) {
     color: var(--fg);
     font-weight: 580;
