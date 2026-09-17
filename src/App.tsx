@@ -2,6 +2,7 @@ import { MotionConfig } from "motion/react";
 import { useEffect } from "react";
 
 import { Toaster } from "./components/Toaster";
+import { ActionDialog } from "./features/actions";
 import { Onboarding } from "./features/onboarding/Onboarding";
 import { startSampling } from "./lib/sampling";
 import { AppShell } from "./shell/AppShell";
@@ -26,6 +27,7 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <HeaderSlotProvider>{onboarded ? <AppShell /> : <Onboarding />}</HeaderSlotProvider>
+      <ActionDialog />
       <Toaster />
     </MotionConfig>
   );
