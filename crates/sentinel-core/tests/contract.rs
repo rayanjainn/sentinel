@@ -263,3 +263,58 @@ fn established_loopback_connection_reports_peer() {
         assert!(counted.bytes_out >= 4096, "{counted:?}");
     }
 }
+
+#[test]
+fn trashed_temp_file_lands_in_trash_not_unlinked() {
+    let (_dir, providers) = providers();
+    let work = tempfile::tempdir().expect("temp dir");
+    let name = format!("sentinel-contract-{}.txt", std::process::id());
+    let path = work.path().join(&name);
+    std::fs::write(&path, b"sentinel trash contract").expect("write");
+    if let Err(err) = providers.file_ops.trash(&path) {
+        assert!(
+            path.exists(),
+            "a failed trash must leave the file in place: {err}"
+        );
+        // Headless Linux runners may have no usable trash for the temp filesystem.
+        #[cfg(target_os = "linux")]
+        {
+            eprintln!(
+                "skipping: this system has no usable trash for {}: {err}",
+                path.display()
+            );
+            return;
+        }
+        #[cfg(not(target_os = "linux"))]
+        panic!("trash failed: {err}");
+    }
+    assert!(!path.exists(), "file left its original location");
+
+    #[cfg(target_os = "macos")]
+    {
+        let trashed = sentinel_core::util::home_dir()
+            .expect("home")
+            .join(".Trash")
+            .join(&name);
+        assert!(
+            trashed.exists(),
+            "expected {} in the Trash",
+            trashed.display()
+        );
+        // Take our test file back out so the temp dir cleans it up.
+        std::fs::rename(&trashed, &path).expect("restore from Trash");
+    }
+    #[cfg(any(target_os = "linux", windows))]
+    {
+        let items = trash::os_limited::list().expect("list trash");
+        let ours: Vec<_> = items
+            .into_iter()
+            .filter(|item| {
+                item.name == std::ffi::OsString::from(&name) && item.original_parent == work.path()
+            })
+            .collect();
+        assert_eq!(ours.len(), 1, "expected exactly one trashed copy");
+        trash::os_limited::restore_all(ours).expect("restore from trash");
+        assert!(path.exists());
+    }
+}

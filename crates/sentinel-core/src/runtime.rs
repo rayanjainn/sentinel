@@ -14,13 +14,14 @@ use crate::platform::{self, PlatformConfig, ProcessNames, Providers};
 use crate::provider::{
     FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
 };
-use crate::service::actions::ActionContext;
+use crate::service::actions::{ActionContext, PathSize};
 use crate::service::history::{ProcessHistory, ResourceHistory};
 use crate::service::network::NetworkMonitor;
 use crate::service::network::dns::ReverseDns;
 use crate::service::network::geo::GeoDb;
 use crate::service::network::home::HomeLocator;
 use crate::service::sampling::clamp_config;
+use crate::service::storage::StorageService;
 use crate::service::{FileFilter, SystemQueries};
 
 #[derive(Debug, Clone)]
@@ -61,6 +62,7 @@ struct Shared {
     process_control: Arc<dyn ProcessControl>,
     permissions: Arc<dyn PermissionProbe>,
     file_ops: Arc<dyn FileOps>,
+    storage: Arc<StorageService>,
 }
 
 pub struct CoreRuntime {
@@ -79,12 +81,14 @@ impl CoreRuntime {
             process_control,
             permissions,
             file_ops,
+            storage,
         } = platform::current(&PlatformConfig {
             data_dir: config.data_dir.clone(),
         });
         let system_info = resources.system_info();
         let geo = Arc::new(GeoDb::open(&config.data_dir.join("geo")));
         let dns = Arc::new(ReverseDns::new(Arc::clone(&sink)));
+        let storage = StorageService::new(storage, Arc::clone(&sink));
         let shared = Arc::new(Shared {
             sink,
             config: Mutex::new(SamplingConfig::default()),
@@ -114,6 +118,7 @@ impl CoreRuntime {
             process_control,
             permissions,
             file_ops,
+            storage,
         });
         let runtime = Arc::new(Self {
             shared: Arc::clone(&shared),
@@ -164,6 +169,17 @@ impl CoreRuntime {
             ),
         })?;
         self.shared.file_ops.reveal(std::path::Path::new(&exe))
+    }
+
+    pub fn storage(&self) -> Arc<StorageService> {
+        Arc::clone(&self.shared.storage)
+    }
+
+    /// Report of a finished duplicate job; `Unavailable` while still hashing.
+    pub fn duplicate_report(&self, job_id: &str) -> CoreResult<DuplicateReport> {
+        self.shared
+            .storage
+            .wait_for_duplicates(job_id, Duration::ZERO)
     }
 
     pub fn geo_db_status(&self) -> GeoDbStatus {
@@ -221,6 +237,46 @@ impl CoreRuntime {
 impl ActionContext for CoreRuntime {
     fn lookup_process(&self, pid: Pid) -> CoreResult<ProcessInfo> {
         self.shared.processes.lock().provider.lookup(pid)
+    }
+
+    fn file_ops(&self) -> CoreResult<Arc<dyn FileOps>> {
+        Ok(Arc::clone(&self.shared.file_ops))
+    }
+
+    fn path_size(&self, path: &std::path::Path) -> Option<PathSize> {
+        let storage = &self.shared.storage;
+        if let Some(result) = storage.tree_covering(path)
+            && let Some(id) = result.tree.find(path)
+            && let Some(node) = result.tree.node(id)
+        {
+            return Some(PathSize {
+                bytes: node.size,
+                items: node.items,
+                modified: node.modified,
+                complete: true,
+            });
+        }
+        Some(storage.measure_path(path, Duration::from_millis(1500)))
+    }
+
+    fn volume_usage(&self, path: &std::path::Path) -> CoreResult<(u64, u64)> {
+        self.shared.storage.provider().volume_usage(path)
+    }
+
+    fn volume_label(&self, path: &std::path::Path) -> Option<String> {
+        let volumes = self.shared.storage.volumes().ok()?;
+        volumes
+            .into_iter()
+            .filter(|v| path.starts_with(&v.mount_point))
+            .max_by_key(|v| v.mount_point.len())
+            .map(|v| v.name)
+    }
+
+    fn same_volume(&self, a: &std::path::Path, b: &std::path::Path) -> Option<bool> {
+        let provider = self.shared.storage.provider();
+        let device_a = provider.metadata(a).ok()?.device;
+        let device_b = provider.metadata(b).ok()?.device;
+        Some(provider.volume_group(device_a).contains(&device_b))
     }
 }
 
@@ -434,50 +490,48 @@ impl SystemQueries for CoreRuntime {
     }
 
     fn volumes(&self) -> CoreResult<Vec<VolumeInfo>> {
-        Err(pending("storage volumes"))
+        self.shared.storage.volumes()
     }
 
-    fn start_scan(&self, _request: ScanRequest) -> CoreResult<ScanId> {
-        Err(pending("storage scan"))
+    fn start_scan(&self, request: ScanRequest) -> CoreResult<ScanId> {
+        self.shared.storage.start_scan(request)
     }
 
-    fn cancel_scan(&self, _scan_id: &str) -> CoreResult<()> {
-        Err(pending("storage scan"))
+    fn cancel_scan(&self, scan_id: &str) -> CoreResult<()> {
+        self.shared.storage.cancel_scan(scan_id)
     }
 
-    fn wait_for_scan(&self, _scan_id: &str, _timeout: Duration) -> CoreResult<ScanSummary> {
-        Err(pending("storage scan"))
+    fn wait_for_scan(&self, scan_id: &str, timeout: Duration) -> CoreResult<ScanSummary> {
+        self.shared.storage.wait_for_scan(scan_id, timeout)
     }
 
-    fn scan_covering(&self, _path: &str) -> Option<ScanId> {
-        None
+    fn scan_covering(&self, path: &str) -> Option<ScanId> {
+        self.shared.storage.scan_covering(path)
     }
 
-    fn scan_summary(&self, _scan_id: &str) -> CoreResult<ScanSummary> {
-        Err(pending("storage scan"))
+    fn scan_summary(&self, scan_id: &str) -> CoreResult<ScanSummary> {
+        self.shared.storage.scan_summary(scan_id)
     }
 
-    fn scan_tree(&self, _query: &TreeQuery) -> CoreResult<TreeNode> {
-        Err(pending("storage scan"))
+    fn scan_tree(&self, query: &TreeQuery) -> CoreResult<TreeNode> {
+        self.shared.storage.scan_tree(query)
     }
 
-    fn find_files(&self, _scan_id: &str, _filter: &FileFilter) -> CoreResult<Vec<FileEntry>> {
-        Err(pending("storage scan"))
+    fn find_files(&self, scan_id: &str, filter: &FileFilter) -> CoreResult<Vec<FileEntry>> {
+        self.shared.storage.find_files(scan_id, filter)
     }
 
-    fn start_duplicate_scan(&self, _scan_id: &str, _min_size_bytes: u64) -> CoreResult<JobId> {
-        Err(pending("duplicate detection"))
+    fn start_duplicate_scan(&self, scan_id: &str, min_size_bytes: u64) -> CoreResult<JobId> {
+        self.shared
+            .storage
+            .start_duplicate_scan(scan_id, min_size_bytes)
     }
 
-    fn cancel_duplicate_scan(&self, _job_id: &str) -> CoreResult<()> {
-        Err(pending("duplicate detection"))
+    fn cancel_duplicate_scan(&self, job_id: &str) -> CoreResult<()> {
+        self.shared.storage.cancel_duplicate_scan(job_id)
     }
 
-    fn wait_for_duplicates(
-        &self,
-        _job_id: &str,
-        _timeout: Duration,
-    ) -> CoreResult<DuplicateReport> {
-        Err(pending("duplicate detection"))
+    fn wait_for_duplicates(&self, job_id: &str, timeout: Duration) -> CoreResult<DuplicateReport> {
+        self.shared.storage.wait_for_duplicates(job_id, timeout)
     }
 }
