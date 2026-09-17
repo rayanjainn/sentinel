@@ -3,7 +3,7 @@
 //! `AgentEngine` is built from [`EngineParts`], which holds a backend, a read executor, a write
 //! translator and an action *preparer*. There is deliberately no way to give it anything that can
 //! execute an action: every write tool call ends at `prepare`, producing a plan card, and the
-//! model is told the action is waiting for the user. Execution lives in `executor::PlanExecutor`.
+//! model is told the action is waiting for the user. Execution lives in the `executor` module.
 
 use std::sync::Arc;
 
