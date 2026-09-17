@@ -1,3 +1,4 @@
+pub mod explain;
 pub mod firewall;
 pub mod network;
 pub mod permissions;
@@ -5,6 +6,7 @@ pub mod process;
 pub mod resources;
 pub mod storage;
 
+pub use explain::*;
 pub use firewall::*;
 pub use network::*;
 pub use permissions::*;

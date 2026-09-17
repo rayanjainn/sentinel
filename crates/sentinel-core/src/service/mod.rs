@@ -7,6 +7,7 @@
 pub mod actions;
 #[cfg(feature = "native")]
 pub mod audit_sqlite;
+pub mod explain;
 pub mod firewall;
 pub mod history;
 pub mod network;
