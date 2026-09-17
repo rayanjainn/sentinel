@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::{NetThroughput, Pid, TimestampMs};
+use super::{ConnectionExplanation, NetThroughput, Pid, TimestampMs, TimestampSecs};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -96,15 +96,28 @@ pub struct SocketEntry {
     pub state: Option<TcpState>,
     pub pid: Option<Pid>,
     pub process_name: Option<String>,
+    /// Owning app for a helper process ("Brave Browser" for one of its renderer processes), so
+    /// the connections list can group many helper PIDs under one app the same way the process
+    /// table does. `None` when the process is not a recognised helper, or its owner is unknown.
+    pub app_name: Option<String>,
+    /// Start time of the owning process, so an action taken from the Network view can build a
+    /// `ProcessIdentity` without a separate lookup. `None` when `pid` is `None` or the owning
+    /// process could not be resolved at sample time.
+    pub process_start_time: Option<TimestampSecs>,
     /// Reverse-DNS result; resolved asynchronously, so often `None` on first sight.
     pub remote_host: Option<String>,
     pub geo: Option<GeoLocation>,
     /// Cumulative bytes. Kernel counters where exposed, otherwise since Sentinel first saw the socket.
     pub bytes_in: Option<u64>,
     pub bytes_out: Option<u64>,
+    /// Bytes per second (not bits) received since the previous sample. `None` when this platform
+    /// or privilege level only exposes cumulative bytes (see `TrafficSource`).
     pub rx_bps: Option<u64>,
+    /// Bytes per second (not bits) sent since the previous sample.
     pub tx_bps: Option<u64>,
     pub first_seen_ms: TimestampMs,
+    /// Plain-language explanation of who the other end is and what it is usually for.
+    pub explanation: ConnectionExplanation,
 }
 
 /// Granularity of traffic accounting the current OS/privilege level supports.

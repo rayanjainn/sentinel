@@ -167,6 +167,7 @@ pub(super) fn preview_add(
             detail: (!users.is_empty()).then(|| format!("In use by {}", users.join(", "))),
             size_bytes: None,
             problem: None,
+            safety_note: None,
         }],
         impact: vec![metric(
             "sentinelRules",
@@ -212,6 +213,7 @@ pub(super) fn preview_remove(service: &ActionService, rule_id: String) -> CoreRe
             detail: Some(what.clone()),
             size_bytes: None,
             problem: None,
+            safety_note: None,
         }],
         impact: vec![metric(
             "ruleActive",
@@ -280,6 +282,7 @@ pub(super) fn execute_add(
         status: OutcomeStatus::Succeeded,
         items: vec![ItemOutcome {
             label: what.clone(),
+            path: None,
             success: true,
             error: None,
         }],
@@ -320,6 +323,7 @@ pub(super) fn execute_remove(
                 status: OutcomeStatus::Succeeded,
                 items: vec![ItemOutcome {
                     label: format!("Rule {rule_id}"),
+                    path: None,
                     success: true,
                     error: None,
                 }],

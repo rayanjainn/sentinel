@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { SocketEntry } from "../../bindings/SocketEntry";
-import { groupByProcess, isListening, socketMatcher, unmappedCounts } from "./grouping";
+import { destinationCount, groupByProcess, isListening, socketMatcher, unmappedCounts } from "./grouping";
 
 export function socket(over: Partial<SocketEntry> = {}): SocketEntry {
   return {
@@ -16,6 +16,8 @@ export function socket(over: Partial<SocketEntry> = {}): SocketEntry {
     state: "established",
     pid: 100,
     processName: "Google Chrome",
+    appName: null,
+    processStartTime: null,
     remoteHost: null,
     geo: null,
     bytesIn: null,
@@ -23,6 +25,7 @@ export function socket(over: Partial<SocketEntry> = {}): SocketEntry {
     rxBps: null,
     txBps: null,
     firstSeenMs: 0,
+    explanation: { headline: "", detail: "", service: null, purpose: null, confidence: "unknown", encrypted: false },
     ...over,
   };
 }
@@ -45,6 +48,33 @@ describe("groupByProcess", () => {
     ]);
     expect(groups.map((g) => g.name)).toEqual(["b", "a", "Unknown process"]);
     expect(groups[0]!.rxBps + groups[0]!.txBps).toBe(12);
+  });
+
+  it("collapses many helper pids under one app, leaving pid unambiguous only for single-process groups", () => {
+    const groups = groupByProcess([
+      socket({ pid: 10, processName: "Brave Browser Helper (Renderer)", appName: "Brave Browser" }),
+      socket({ pid: 11, processName: "Brave Browser Helper", appName: "Brave Browser" }),
+      socket({ pid: 20, processName: "postgres", appName: null }),
+    ]);
+    const brave = groups.find((g) => g.name === "Brave Browser")!;
+    expect(brave.pids).toEqual([10, 11]);
+    expect(brave.pid).toBeNull();
+    expect(brave.sockets).toHaveLength(2);
+    const postgres = groups.find((g) => g.name === "postgres")!;
+    expect(postgres.pid).toBe(20);
+    expect(postgres.pids).toEqual([20]);
+  });
+});
+
+describe("destinationCount", () => {
+  it("counts distinct public remote endpoints, preferring the resolved hostname", () => {
+    const count = destinationCount([
+      socket({ remoteAddr: "1.1.1.1", remoteHost: "one.one.one.one", remoteScope: "public" }),
+      socket({ remoteAddr: "1.1.1.1", remoteHost: "one.one.one.one", remoteScope: "public" }),
+      socket({ remoteAddr: "8.8.8.8", remoteHost: null, remoteScope: "public" }),
+      socket({ remoteAddr: "192.168.1.1", remoteScope: "private" }),
+    ]);
+    expect(count).toBe(2);
   });
 });
 

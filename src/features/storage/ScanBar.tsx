@@ -1,6 +1,9 @@
 import { Stop, Warning } from "@phosphor-icons/react";
+import { useMemo } from "react";
 
+import type { CleanupCategory } from "../../bindings/CleanupCategory";
 import type { ScanPhase } from "../../bindings/ScanPhase";
+import type { ScanSummary } from "../../bindings/ScanSummary";
 import { Button } from "../../components/Button";
 import { PermissionButton } from "../../components/States";
 import { cx } from "../../lib/cx";
@@ -16,6 +19,13 @@ const PHASE_LABEL: Record<ScanPhase, string> = {
   failed: "Scan failed",
 };
 
+/** Categories that read as "caches and build folders" in the one-line state summary. */
+const CACHE_LIKE: CleanupCategory[] = ["appCache", "buildArtifacts", "packageManagerCache", "developerCache"];
+
+function cacheLikeBytes(summary: ScanSummary): number {
+  return summary.suggestions.filter((s) => CACHE_LIKE.includes(s.category)).reduce((sum, s) => sum + s.sizeBytes, 0);
+}
+
 /** Live scan progress: counts, current path, unreadable entries with a Full Disk Access hint. */
 export function ScanBar() {
   const scanId = useStorage((s) => s.scanId);
@@ -23,6 +33,7 @@ export function ScanBar() {
   const summary = useStorage((s) => s.summary);
   const cancelScan = useStorage((s) => s.cancelScan);
   const fda = usePermissions((s) => s.status?.fullDiskAccess);
+  const cacheBytes = useMemo(() => (summary ? cacheLikeBytes(summary) : 0), [summary]);
   if (!scanId) return null;
   const scanning = isScanning(progress, scanId);
   const phase: ScanPhase = progress?.phase ?? "walking";
@@ -56,6 +67,18 @@ export function ScanBar() {
           </Button>
         )}
       </div>
+      {summary && (
+        <p className="mt-1 text-[12px] text-fg-muted">
+          <span className="num text-fg">{formatBytes(summary.totalBytes, { base: 1000 })}</span> used in this scan
+          {cacheBytes > 0 && (
+            <>
+              ; caches and build folders account for{" "}
+              <span className="num text-fg">{formatBytes(cacheBytes, { base: 1000 })}</span>
+            </>
+          )}
+          .
+        </p>
+      )}
       {progress?.error && <p className="mt-1 text-[12px] text-danger">{progress.error}</p>}
       {unreadable > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[12px] text-warn">

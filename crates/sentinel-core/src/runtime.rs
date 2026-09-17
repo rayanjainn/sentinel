@@ -1,5 +1,6 @@
 //! The core runtime: owns the providers, runs the sampler thread, and answers `SystemQueries`.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
@@ -15,12 +16,13 @@ use crate::provider::{
     FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
 };
 use crate::service::actions::{ActionContext, PathSize};
+use crate::service::explain;
 use crate::service::firewall::FirewallService;
 use crate::service::history::{ProcessHistory, ResourceHistory};
-use crate::service::network::NetworkMonitor;
 use crate::service::network::dns::ReverseDns;
 use crate::service::network::geo::GeoDb;
 use crate::service::network::home::HomeLocator;
+use crate::service::network::{NetworkMonitor, ProcessOwner};
 use crate::service::sampling::clamp_config;
 use crate::service::storage::StorageService;
 use crate::service::{FileFilter, SystemQueries};
@@ -41,6 +43,9 @@ struct ProcessState {
     provider: Box<dyn ProcessProvider>,
     last: Option<(Instant, ProcessSnapshot)>,
     history: ProcessHistory,
+    /// Explanation classification is a pattern match over static facts (path, flags, parent),
+    /// so it is cached per (pid, start_time) rather than recomputed on every 1 Hz tick.
+    explain_cache: HashMap<Pid, (TimestampSecs, ProcessSummary)>,
 }
 
 struct NetworkState {
@@ -111,6 +116,7 @@ impl CoreRuntime {
                 provider: processes,
                 last: None,
                 history: ProcessHistory::default(),
+                explain_cache: HashMap::new(),
             }),
             network: Mutex::new(NetworkState {
                 monitor: NetworkMonitor::new(network, dns, Arc::clone(&geo)),
@@ -394,41 +400,101 @@ fn sample_resources(shared: &Shared) -> CoreResult<ResourceSample> {
 
 fn refresh_processes(shared: &Shared) -> CoreResult<ProcessSnapshot> {
     let mut state = shared.processes.lock();
-    let snapshot = state.provider.refresh()?;
+    let mut snapshot = state.provider.refresh()?;
+    enrich_process_summaries(&mut state, &mut snapshot, shared.system_info.platform);
     state.history.record(&snapshot);
     state.last = Some((Instant::now(), snapshot.clone()));
     Ok(snapshot)
 }
 
+/// Fills in `ProcessInfo::summary` for every process. Classification is a pattern match over
+/// static facts (path, flags, parent), so it is cached per (pid, start_time) rather than
+/// recomputed for every process on every 1 Hz tick.
+fn enrich_process_summaries(
+    state: &mut ProcessState,
+    snapshot: &mut ProcessSnapshot,
+    platform: Platform,
+) {
+    let by_pid: HashMap<Pid, ProcessInfo> = snapshot
+        .processes
+        .iter()
+        .map(|p| (p.pid, p.clone()))
+        .collect();
+    let live: HashSet<Pid> = by_pid.keys().copied().collect();
+    state.explain_cache.retain(|pid, _| live.contains(pid));
+    for process in snapshot.processes.iter_mut() {
+        if let Some((start, cached)) = state.explain_cache.get(&process.pid)
+            && *start == process.start_time
+        {
+            process.summary = cached.clone();
+            continue;
+        }
+        let parent = process.ppid.and_then(|ppid| by_pid.get(&ppid));
+        let summary = explain::summary_info(process, parent, platform);
+        state
+            .explain_cache
+            .insert(process.pid, (process.start_time, summary.clone()));
+        process.summary = summary;
+    }
+}
+
 fn sample_network(shared: &Shared) -> CoreResult<NetworkSnapshot> {
     let mut state = shared.network.lock();
-    let mut names = |pids: &[Pid]| process_names(shared, pids);
-    let snapshot = state.monitor.sample(&mut names)?;
+    let mut owners = |pids: &[Pid]| process_owners(shared, pids);
+    let snapshot = state.monitor.sample(&mut owners)?;
     state.last = Some((Instant::now(), snapshot.clone()));
     Ok(snapshot)
 }
 
-/// Names from the sampled process table when it is fresh, otherwise from a light name-only scan.
-fn process_names(shared: &Shared, pids: &[Pid]) -> std::collections::HashMap<Pid, String> {
+/// Owner name, start time and role for each pid, from the sampled process table when it is fresh
+/// (role and start time come from that table's own enrichment pass), otherwise from a light
+/// name-only scan — which cannot say the role, so callers must treat `role: None` as unknown
+/// rather than "not a browser", and never fabricate a tab from it.
+fn process_owners(shared: &Shared, pids: &[Pid]) -> HashMap<Pid, ProcessOwner> {
     {
         let state = shared.processes.lock();
         if let Some((at, snapshot)) = &state.last
             && at.elapsed() <= Duration::from_secs(3)
         {
-            let by_pid: std::collections::HashMap<Pid, &str> = snapshot
-                .processes
-                .iter()
-                .map(|p| (p.pid, p.name.as_str()))
-                .collect();
+            let by_pid: HashMap<Pid, &ProcessInfo> =
+                snapshot.processes.iter().map(|p| (p.pid, p)).collect();
             if pids.iter().all(|pid| by_pid.contains_key(pid)) {
                 return pids
                     .iter()
-                    .filter_map(|pid| by_pid.get(pid).map(|name| (*pid, (*name).to_owned())))
+                    .filter_map(|pid| {
+                        by_pid.get(pid).map(|p| {
+                            (
+                                *pid,
+                                ProcessOwner {
+                                    name: p.name.clone(),
+                                    app_name: p.summary.app_name.clone(),
+                                    start_time: Some(p.start_time),
+                                    role: Some(p.summary.role),
+                                },
+                            )
+                        })
+                    })
                     .collect();
             }
         }
     }
-    shared.process_names.lock().names(pids.iter().copied())
+    shared
+        .process_names
+        .lock()
+        .names(pids.iter().copied())
+        .into_iter()
+        .map(|(pid, name)| {
+            (
+                pid,
+                ProcessOwner {
+                    name,
+                    app_name: None,
+                    start_time: None,
+                    role: None,
+                },
+            )
+        })
+        .collect()
 }
 
 fn interval(shared: &Shared) -> Duration {
@@ -475,11 +541,26 @@ impl SystemQueries for CoreRuntime {
     }
 
     fn process_detail(&self, pid: Pid) -> CoreResult<ProcessDetail> {
-        let (info, open_files) = {
+        let (mut info, open_files, parent) = {
             let mut state = self.shared.processes.lock();
             let info = state.provider.lookup(pid)?;
-            (info, state.provider.open_files(pid))
+            let open_files = state.provider.open_files(pid);
+            // Prefer the cached table (its parent is already enriched and costs no extra
+            // syscall); fall back to a direct lookup for a parent that fell out of the cache.
+            let parent = match info.ppid {
+                Some(ppid) => {
+                    let cached = state.last.as_ref().and_then(|(_, snap)| {
+                        snap.processes.iter().find(|p| p.pid == ppid).cloned()
+                    });
+                    cached.or_else(|| state.provider.lookup(ppid).ok())
+                }
+                None => None,
+            };
+            (info, open_files, parent)
         };
+        let explanation =
+            explain::explain_info(&info, parent.as_ref(), self.shared.system_info.platform);
+        info.summary = explanation.summary();
         let (open_files, open_files_error) = match open_files {
             Ok(files) => (files, None),
             Err(err) => (Vec::new(), Some(err.into())),
@@ -500,6 +581,7 @@ impl SystemQueries for CoreRuntime {
             open_files,
             open_files_error,
             connections,
+            explanation,
         })
     }
 

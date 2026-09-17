@@ -7,6 +7,7 @@ use crate::action::{
 };
 use crate::error::{CoreResult, SentinelError};
 use crate::model::{Platform, ProcessIdentity, ProcessInfo, ProcessStatus, TerminateMethod};
+use crate::service::explain::explain_info;
 use crate::util::{format_bytes, guard_process_target};
 
 fn label(info: &ProcessInfo) -> String {
@@ -89,7 +90,9 @@ fn owner_warnings(service: &ActionService, info: &ProcessInfo, warnings: &mut Ve
     false
 }
 
-fn process_target(info: &ProcessInfo) -> PreviewTarget {
+/// The same "Is it safe to quit?" sentence the detail drawer shows, computed once so the confirm
+/// dialog and the agent's plan card never disagree with it.
+fn process_target(service: &ActionService, info: &ProcessInfo) -> PreviewTarget {
     let detail = info
         .exe
         .clone()
@@ -101,11 +104,16 @@ fn process_target(info: &ProcessInfo) -> PreviewTarget {
                 text
             }
         });
+    let parent = info
+        .ppid
+        .and_then(|ppid| service.context.lookup_process(ppid).ok());
+    let safety_note = explain_info(info, parent.as_ref(), service.config.platform).quit_note;
     PreviewTarget {
         label: label(info),
         detail,
         size_bytes: None,
         problem: None,
+        safety_note: Some(safety_note),
     }
 }
 
@@ -176,7 +184,7 @@ pub(super) fn preview_stop(
         },
         title,
         description,
-        targets: vec![process_target(&info)],
+        targets: vec![process_target(service, &info)],
         impact: vec![
             metric(
                 "memoryRss",
@@ -260,7 +268,7 @@ pub(super) fn preview_priority(
                 None => format!("new nice {nice}"),
             }
         ),
-        targets: vec![process_target(&info)],
+        targets: vec![process_target(service, &info)],
         impact,
         estimated_bytes_freed: None,
         risk: ActionRisk::Moderate,
@@ -385,6 +393,7 @@ pub(super) fn execute_stop(
         status: OutcomeStatus::Succeeded,
         items: vec![ItemOutcome {
             label: target_label,
+            path: None,
             success: true,
             error: None,
         }],
@@ -439,6 +448,7 @@ pub(super) fn execute_priority(
         status: OutcomeStatus::Succeeded,
         items: vec![ItemOutcome {
             label: target_label,
+            path: None,
             success: true,
             error: None,
         }],

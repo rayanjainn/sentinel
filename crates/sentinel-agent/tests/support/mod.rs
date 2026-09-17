@@ -47,6 +47,7 @@ pub fn process(pid: Pid, name: &str, cpu: f32, start_time: TimestampSecs) -> Pro
         thread_count: Some(8),
         fd_count: Some(20),
         nice: Some(0),
+        summary: ProcessSummary::default(),
     }
 }
 
@@ -156,6 +157,7 @@ impl SystemQueries for FakeQueries {
             open_files_error: None,
             connections: Vec::new(),
             has_window: false,
+            explanation: ProcessExplanation::default(),
         })
     }
 

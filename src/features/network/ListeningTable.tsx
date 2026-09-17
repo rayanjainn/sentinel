@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react";
 import type { SocketEntry } from "../../bindings/SocketEntry";
 import { Button, IconButton } from "../../components/Button";
 import { openContextMenu, openMenuAt } from "../../components/ContextMenu";
+import { InfoTip } from "../../components/InfoTip";
 import { EmptyState, StatePanel } from "../../components/States";
 import { useVirtualRows } from "../../lib/virtual";
 import { blockLocalPort, socketMenu } from "./socketActions";
@@ -47,9 +48,18 @@ export function ListeningTable({ sockets }: { sockets: SocketEntry[] }) {
           className="sticky top-0 z-10 grid items-center border-b border-line bg-ground text-[12px] text-fg-muted"
           style={{ gridTemplateColumns: GRID, height: HEADER_HEIGHT }}
         >
-          <span role="columnheader" className="px-4 text-right">Port</span>
-          <span role="columnheader" className="px-3">Proto</span>
-          <span role="columnheader" className="px-3">Listening on</span>
+          <span role="columnheader" className="flex items-center justify-end gap-1.5 px-4 text-right">
+            Port
+            <InfoTip id="listeningPort" />
+          </span>
+          <span role="columnheader" className="flex items-center gap-1.5 px-3">
+            Proto
+            <InfoTip id="protocol" />
+          </span>
+          <span role="columnheader" className="flex items-center gap-1.5 px-3">
+            Listening on
+            <InfoTip id="localBinding" />
+          </span>
           <span role="columnheader" className="px-3">Process</span>
           <span />
           <span />

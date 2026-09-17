@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp } from "@phosphor-icons/react";
 import type { ResourceSample } from "../../bindings/ResourceSample";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { LiveChart } from "../../components/charts/LiveChart";
+import { InfoTip } from "../../components/InfoTip";
 import { formatBytes, formatRate } from "../../lib/format";
 import { useResources } from "../../stores/resources";
 import { useSettings } from "../../stores/settings";
@@ -26,6 +27,7 @@ export function ThroughputStrip() {
           <ArrowDown size={12} className="text-fg-muted" />
           <span className="w-16 text-[12px] text-fg-muted">Download</span>
           <AnimatedNumber value={net?.rxBps ?? 0} format={formatRate} className="num text-[13px] text-fg" />
+          <InfoTip id="throughputRate" />
         </div>
         <div className="flex items-center gap-2">
           <span className="h-0.5 w-3 rounded-full" style={{ background: SERIES.tx }} />

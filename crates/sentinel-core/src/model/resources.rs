@@ -101,8 +101,13 @@ pub struct ThermalSample {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NetThroughput {
+    /// Bytes per second (not bits) received, summed across every network interface on this
+    /// machine — Wi-Fi, Ethernet, VPN — with loopback excluded.
     pub rx_bps: u64,
+    /// Bytes per second (not bits) sent, same scope as `rx_bps`.
     pub tx_bps: u64,
+    /// Cumulative bytes received since the interface came up (normally since the machine booted),
+    /// same scope as `rx_bps`.
     pub rx_total: u64,
     pub tx_total: u64,
 }

@@ -1,5 +1,6 @@
 import {
   ArrowsClockwise,
+  CheckCircle,
   Copy,
   File,
   FolderOpen,
@@ -10,6 +11,8 @@ import {
   Plug,
   Power,
   Question,
+  ShieldWarning,
+  WarningOctagon,
   X,
   XCircle,
 } from "@phosphor-icons/react";
@@ -21,14 +24,17 @@ import type { ProcessDetail } from "../../bindings/ProcessDetail";
 import type { ProcessHistoryPoint } from "../../bindings/ProcessHistoryPoint";
 import type { ProcessIdentity } from "../../bindings/ProcessIdentity";
 import type { ProcessInfo } from "../../bindings/ProcessInfo";
+import type { QuitSafety } from "../../bindings/QuitSafety";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { Button, IconButton } from "../../components/Button";
 import { LiveChart, type DataSource } from "../../components/charts/LiveChart";
+import { InfoTip } from "../../components/InfoTip";
 import { Segmented } from "../../components/Segmented";
 import { Skeleton } from "../../components/Skeleton";
 import { ErrorState } from "../../components/States";
 import { cx } from "../../lib/cx";
 import { formatBytes, formatDateTime, formatDuration, formatNice, formatPercent } from "../../lib/format";
+import type { GlossaryId } from "../../lib/glossary";
 import { api } from "../../lib/ipc";
 import { springPanel } from "../../lib/motion";
 import { formatEndpoint, TCP_STATE_LABEL } from "../../lib/net";
@@ -44,6 +50,46 @@ import { copyCommandLine, forceQuitProcess, quitProcess, revealExecutable } from
 import { useProcessView } from "./viewState";
 
 const HISTORY_WINDOW_MS = 60_000;
+
+const SAFETY_TONE: Record<QuitSafety, { icon: typeof Question; className: string }> = {
+  systemCritical: { icon: WarningOctagon, className: "text-danger" },
+  osService: { icon: ShieldWarning, className: "text-warn" },
+  appHelper: { icon: Question, className: "text-fg-muted" },
+  userApp: { icon: CheckCircle, className: "text-signal" },
+  background: { icon: Question, className: "text-fg-muted" },
+  unknown: { icon: Question, className: "text-fg-subtle" },
+};
+
+/** The same sentence the confirm dialog shows for this process (PreviewTarget.safetyNote), so the
+ * two can never disagree — see crates/sentinel-core/src/service/explain. */
+function SafetyBlock({ detail }: { detail: ProcessDetail }) {
+  const { explanation } = detail;
+  const tone = SAFETY_TONE[explanation.quitSafety];
+  const Icon = tone.icon;
+  return (
+    <div className="flex flex-col gap-2 border-b border-line px-5 py-3">
+      <div className="flex items-start gap-2">
+        <Icon size={15} weight="fill" className={cx("mt-0.5 shrink-0", tone.className)} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-[12px] font-medium text-fg">Is it safe to quit?</span>
+          <p className="text-[13px] text-fg-muted">{explanation.quitNote}</p>
+        </div>
+      </div>
+      {explanation.evidence.length > 0 && (
+        <details className="pl-[23px] text-[12px] text-fg-subtle">
+          <summary className="cursor-pointer select-none hover:text-fg">Evidence</summary>
+          <ul className="num mt-1 flex flex-col gap-0.5 selectable">
+            {explanation.evidence.map((line) => (
+              <li key={line} className="break-all">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
 
 function useProcessHistory(identity: ProcessIdentity): { source: DataSource<ProcessHistoryPoint>; error: unknown } {
   const data = useRef<ProcessHistoryPoint[]>([]);
@@ -90,10 +136,23 @@ function useProcessHistory(identity: ProcessIdentity): { source: DataSource<Proc
 
 type DetailState = { status: "loading" } | { status: "ready"; detail: ProcessDetail } | { status: "error"; error: unknown };
 
-function Meta({ label, children, mono = false }: { label: string; children: ReactNode; mono?: boolean }) {
+function Meta({
+  label,
+  children,
+  mono = false,
+  glossaryId,
+}: {
+  label: string;
+  children: ReactNode;
+  mono?: boolean;
+  glossaryId?: GlossaryId;
+}) {
   return (
     <>
-      <dt className="text-fg-muted">{label}</dt>
+      <dt className="flex items-center gap-1 text-fg-muted">
+        {label}
+        {glossaryId && <InfoTip id={glossaryId} />}
+      </dt>
       <dd className={cx("selectable min-w-0 break-words text-fg", mono && "num text-[12px]")}>{children}</dd>
     </>
   );
@@ -239,6 +298,7 @@ function DrawerContent({ identity }: { identity: ProcessIdentity }) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {detail && !exited && <SafetyBlock detail={detail} />}
         <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-5 py-3">
           <Button size="sm" icon={<Power size={13} />} disabled={exited} onClick={() => void quitProcess(p)}>
             Quit
@@ -305,8 +365,8 @@ function DrawerContent({ identity }: { identity: ProcessIdentity }) {
           )}
         </div>
 
-        <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-line px-5 py-4 text-[13px]">
-          <Meta label="Parent">
+        <dl className="grid grid-cols-[128px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-line px-5 py-4 text-[13px]">
+          <Meta label="Parent" glossaryId="ppid">
             {p.ppid === null ? (
               "—"
             ) : parent ? (
@@ -321,13 +381,13 @@ function DrawerContent({ identity }: { identity: ProcessIdentity }) {
               <span className="num">{p.ppid}</span>
             )}
           </Meta>
-          <Meta label="Average CPU" mono>{formatPercent(p.cpuPercentAvg)}</Meta>
-          <Meta label="Virtual memory" mono>{formatBytes(p.memoryVirtual)}</Meta>
-          <Meta label="Threads" mono>{p.threadCount ?? "Not available"}</Meta>
-          <Meta label="Open files" mono>{p.fdCount ?? "Not available"}</Meta>
-          <Meta label="Nice" mono>{formatNice(p.nice)}</Meta>
-          <Meta label="Started">{formatDateTime(p.startTime * 1000)}</Meta>
-          <Meta label="Running for" mono>{formatDuration(p.runTimeSecs)}</Meta>
+          <Meta label="Average CPU" mono glossaryId="cpuPercentAvg">{formatPercent(p.cpuPercentAvg)}</Meta>
+          <Meta label="Virtual memory" mono glossaryId="memoryVirtual">{formatBytes(p.memoryVirtual)}</Meta>
+          <Meta label="Threads" mono glossaryId="threadCount">{p.threadCount ?? "Not available"}</Meta>
+          <Meta label="Open files" mono glossaryId="fdCount">{p.fdCount ?? "Not available"}</Meta>
+          <Meta label="Nice" mono glossaryId="nice">{formatNice(p.nice)}</Meta>
+          <Meta label="Started" glossaryId="startTime">{formatDateTime(p.startTime * 1000)}</Meta>
+          <Meta label="Running for" mono glossaryId="runTime">{formatDuration(p.runTimeSecs)}</Meta>
           <Meta label="Executable" mono>{p.exe ?? "Not available"}</Meta>
           <Meta label="Command line" mono>
             <span className="block max-h-28 overflow-y-auto whitespace-pre-wrap break-all">{p.cmd.length > 0 ? p.cmd.join(" ") : "Not available"}</span>

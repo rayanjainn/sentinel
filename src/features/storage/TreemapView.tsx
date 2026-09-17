@@ -211,7 +211,11 @@ function Tooltip({ node, x, y, width, height }: { node: TreeNode; x: number; y: 
       <dl className="grid grid-cols-[88px_1fr] gap-x-2 gap-y-0.5 text-fg-muted">
         <dt>Type</dt>
         <dd className="text-fg">{kindLabel}</dd>
-        <dt>Exact size</dt>
+        {/* This is the on-disk allocation (st_blocks / GetCompressedFileSize), the number that
+            frees space when moved to the Trash — see the "Size on disk" InfoTip elsewhere in this
+            view. An InfoTip is not placed inside this hover panel itself: moving the pointer off
+            the treemap SVG to reach it would close this panel first. */}
+        <dt>Size on disk</dt>
         <dd className="num text-fg">{formatCount(node.sizeBytes)} bytes</dd>
         {node.kind !== "file" && (
           <>

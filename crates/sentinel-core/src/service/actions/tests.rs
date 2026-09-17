@@ -91,6 +91,7 @@ fn process(pid: Pid, name: &str, user: &str) -> ProcessInfo {
         thread_count: Some(4),
         fd_count: Some(10),
         nice: Some(0),
+        summary: crate::model::ProcessSummary::default(),
     }
 }
 

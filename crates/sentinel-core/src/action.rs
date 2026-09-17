@@ -111,6 +111,10 @@ pub struct PreviewTarget {
     pub size_bytes: Option<u64>,
     /// Target could not be validated (vanished, unreadable); it will be skipped on commit.
     pub problem: Option<String>,
+    /// For a process target, the same "Is it safe to quit?" sentence shown in the detail drawer —
+    /// computed once so the confirm dialog and the agent's plan card never disagree with it.
+    /// `None` for a target that is not a process (a path, a firewall rule).
+    pub safety_note: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -173,6 +177,10 @@ pub enum OutcomeStatus {
 #[ts(export)]
 pub struct ItemOutcome {
     pub label: String,
+    /// The exact path this item acted on, when the action was path-based (trash, move). `None`
+    /// for a process or firewall item, whose `label` is not a path. Lets the UI map a batch
+    /// result back to the exact row it started from instead of matching display labels.
+    pub path: Option<String>,
     pub success: bool,
     pub error: Option<ErrorPayload>,
 }

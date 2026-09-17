@@ -8,4 +8,10 @@ label: string, detail: string | null, sizeBytes: number | null,
 /**
  * Target could not be validated (vanished, unreadable); it will be skipped on commit.
  */
-problem: string | null, };
+problem: string | null, 
+/**
+ * For a process target, the same "Is it safe to quit?" sentence shown in the detail drawer —
+ * computed once so the confirm dialog and the agent's plan card never disagree with it.
+ * `None` for a target that is not a process (a path, a firewall rule).
+ */
+safetyNote: string | null, };

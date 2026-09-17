@@ -66,6 +66,8 @@ export interface TreeRow {
   /** For each ancestor level: whether a vertical guide continues past this row. */
   guides: boolean[];
   isLast: boolean;
+  /** Set on a synthetic app-group header row ("Grouped" mode), never on a real process. */
+  isAppGroup?: boolean;
 }
 
 export interface FlattenOptions {

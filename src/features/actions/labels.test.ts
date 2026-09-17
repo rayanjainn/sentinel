@@ -29,7 +29,7 @@ describe("action labels", () => {
     expect(
       confirmationPhrase({
         title: "Remove",
-        targets: [{ label: "Block 203.0.113.9", detail: null, sizeBytes: null, problem: null }],
+        targets: [{ label: "Block 203.0.113.9", detail: null, sizeBytes: null, problem: null, safetyNote: null }],
         action: { type: "removeFirewallRule", ruleId: "r1" },
       }),
     ).toBe("Block 203.0.113.9");

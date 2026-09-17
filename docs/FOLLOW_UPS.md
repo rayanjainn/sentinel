@@ -48,13 +48,15 @@ Accessibility permission): process tree connector lines, Network "Listening" and
 tabs, Storage "Largest files" tab, treemap zoom and breadcrumb animations, the geolocation database
 download prompt, and first-run onboarding. Click through each by hand.
 
-### Contract gaps
-- `SocketEntry` carries only `pid`, so actions from the Network view look up the process start time
-  first. Adding `startTime` to sockets would remove the extra round trip.
-- `ItemOutcome` has no `path`; partial trash/move results are matched to rows by display label. Add
-  a `path` (or target index) field so batch results map exactly.
-- `NetThroughput.rxBps` / `txBps` do not state bytes vs bits. The UI assumes bytes per second;
-  document it in the type (or rename to `rxBytesPerSec`).
+### Contract gaps — resolved by workstream E
+- `SocketEntry.processStartTime` (added) lets socket actions build a `ProcessIdentity` directly;
+  `socketActions.ts` uses it and only falls back to a lookup for a multi-process app group's
+  ambiguous pid.
+- `ItemOutcome.path` (added) lets partial trash/move results map back to their row by path instead
+  of matching display labels; `storageActions.tsx` uses it.
+- `NetThroughput`/`SocketEntry` `rx_bps`/`tx_bps`/`rx_total`/`tx_total` now carry doc comments
+  (surfaced as JSDoc on the generated TS) stating bytes per second (not bits) and the interface
+  scope, rather than a rename — avoids touching every call site for a documentation gap.
 
 ### Performance
 - Idle `sentinel-app` measured 64–100 MB RSS on a dev build; WebKit content processes were not

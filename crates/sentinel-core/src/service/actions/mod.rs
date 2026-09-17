@@ -116,6 +116,7 @@ impl Execution {
             summary: format!("Could not complete: {error}"),
             items: vec![ItemOutcome {
                 label,
+                path: None,
                 success: false,
                 error: Some(error.into()),
             }],

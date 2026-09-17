@@ -20,6 +20,7 @@ const p = (pid: number, over: Partial<ProcessInfo> = {}): ProcessInfo => ({
   threadCount: null,
   fdCount: null,
   nice: null,
+  summary: { headline: "", appName: null, role: "unknown", category: "unknown", quitSafety: "unknown", confidence: "unknown" },
   ...over,
 });
 

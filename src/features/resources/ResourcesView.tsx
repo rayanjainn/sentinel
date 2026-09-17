@@ -4,11 +4,13 @@ import { create } from "zustand";
 import type { ResourceSample } from "../../bindings/ResourceSample";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { LiveChart } from "../../components/charts/LiveChart";
+import { InfoTip } from "../../components/InfoTip";
 import { Segmented } from "../../components/Segmented";
 import { Skeleton } from "../../components/Skeleton";
 import { ErrorState, StatePanel } from "../../components/States";
 import { formatPercent } from "../../lib/format";
 import { HeaderToolbar } from "../../shell/HeaderSlot";
+import { useProcesses } from "../../stores/processes";
 import { useResources } from "../../stores/resources";
 import { useSettings } from "../../stores/settings";
 import { SERIES } from "../../styles/dataviz";
@@ -25,6 +27,7 @@ function CpuSection({ windowMs }: { windowMs: number }) {
   const cpuTotal = useResources((s) => s.latest?.cpuTotal ?? 0);
   const perCore = useResources((s) => s.latest?.perCore);
   const info = useResources((s) => s.systemInfo);
+  const processes = useProcesses((s) => s.processes);
   const intervalMs = useSettings((s) => s.intervalMs);
   const series = useMemo(
     () => [{ key: "cpu", label: "CPU", color: SERIES.cpu, value: (d: ResourceSample) => d.cpuTotal }],
@@ -37,17 +40,34 @@ function CpuSection({ windowMs }: { windowMs: number }) {
   });
   const top = busiest as { index: number; value: number } | null;
 
+  const busiestProcess = useMemo(
+    () => processes.reduce<(typeof processes)[number] | null>((max, p) => (!max || p.cpuPercent > max.cpuPercent ? p : max), null),
+    [processes],
+  );
+
   return (
     <section aria-labelledby="cpu-title" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
         <div className="flex flex-col gap-0.5">
-          <h2 id="cpu-title" className="text-[13px] font-medium text-fg">
+          <h2 id="cpu-title" className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
             CPU
+            <InfoTip id="cpuTotal" />
           </h2>
           <div className="flex items-baseline gap-2">
             <AnimatedNumber value={cpuTotal} format={formatPercent} className="text-[28px] font-semibold tracking-display text-fg" />
             <span className="text-fg-muted">across all cores</span>
           </div>
+          <p className="text-[12px] text-fg-muted">
+            {busiestProcess && busiestProcess.cpuPercent >= 3 ? (
+              <>
+                Busy: <span className="text-fg">{busiestProcess.name}</span> is using{" "}
+                <span className="num text-fg">{formatPercent(busiestProcess.cpuPercent, 0)}</span>
+                {info ? ` of ${info.logicalCores} cores' worth of CPU` : ""}.
+              </>
+            ) : (
+              "Idle: nothing is using much CPU right now."
+            )}
+          </p>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-[12px] text-fg-muted">
           {info && (
@@ -145,15 +165,17 @@ export function ResourcesView() {
             </div>
           </div>
           <section aria-labelledby="cores-title" className="flex flex-col gap-3">
-            <h2 id="cores-title" className="text-[13px] font-medium text-fg">
+            <h2 id="cores-title" className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
               Per core
+              <InfoTip id="perCoreUsage" />
             </h2>
             <CoreField />
           </section>
           <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-8 border-t border-line pt-6">
             <section aria-labelledby="memory-title" className="flex flex-col gap-3">
-              <h2 id="memory-title" className="text-[13px] font-medium text-fg">
+              <h2 id="memory-title" className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
                 Memory
+                <InfoTip id="memoryUsed" />
               </h2>
               <MemoryChart windowMs={windowMs} />
             </section>
