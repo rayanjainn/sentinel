@@ -17,19 +17,29 @@
   --color-signal-ink: var(--signal-ink);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
 
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-control: 6px;
-  --radius-panel: 10px;
-  --radius-dialog: 14px;
+  /* DESIGN.md: 5 controls · 8 panels · 12 dialogs and drawers. */
+  --radius-control: 5px;
+  --radius-panel: 8px;
+  --radius-dialog: 12px;
+
+  --text-axis: 11px;
+  --text-dense: 12px;
+  --text-body: 13px;
+  --text-section: 15px;
+  --text-headline: 20px;
+  --text-hero: 28px;
 }
 
 html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -38,11 +48,185 @@ body {
   color: var(--fg);
   font-family: var(--font-sans);
   font-size: 13px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  cursor: default;
 }
 
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+.tracking-display {
+  letter-spacing: -0.01em;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--signal) 70%, transparent);
+  outline-offset: 1px;
+  border-radius: var(--radius-control);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--signal) 28%, transparent);
+}
+
+/* Quiet scrollbars that stay out of the data's way. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.shadow-float {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 12px 32px -8px rgb(var(--shadow-tint) / 0.45),
+    0 2px 6px -2px rgb(var(--shadow-tint) / 0.3);
+}
+
+/* Skeleton shimmer: a slow light sweep across the real layout's shape. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  border-radius: 4px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--fg) 7%, transparent),
+    transparent
+  );
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.live-ping {
+  animation: live-pulse 2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+
+/* World map: endpoint pulses and packets travelling along great-circle arcs (transform/opacity only;
+   offset-distance resolves to a transform along the motion path). */
+@keyframes map-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+.map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-pulse var(--pulse, 2.6s) cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes map-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+.map-packet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--signal);
+  offset-anchor: 50% 50%;
+  offset-rotate: 0deg;
+  opacity: 0;
+  animation: map-packet var(--duration, 2.4s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: var(--delay, 0s);
+  pointer-events: none;
+}
+
+@keyframes map-arc-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.map-arc {
+  animation: map-arc-in 600ms ease-out both;
+}
+
+[data-paused="true"] *,
+[data-paused="true"] {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .live-ping,
+  .map-pulse,
+  .map-arc {
+    animation: none;
+  }
+  .map-packet {
+    display: none;
+  }
 }
