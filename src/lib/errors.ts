@@ -56,6 +56,14 @@ export function describeError(error: unknown, subject?: string): ErrorDescriptio
     case "pathNotFound":
       return { ...base, title: "Item no longer exists", detail: `${p.path} was moved or deleted.` };
     case "unavailable":
+      if (/\bstill\b/i.test(p.reason)) {
+        return {
+          ...base,
+          quiet: true,
+          title: subject ? `${subject} is not ready yet` : "Not ready yet",
+          detail: `Sentinel is ${p.reason.replace(/\.$/, "")}. Try again when it finishes.`,
+        };
+      }
       return {
         ...base,
         quiet: true,

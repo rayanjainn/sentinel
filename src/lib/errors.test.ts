@@ -17,6 +17,16 @@ describe("describeError", () => {
     expect(d.detail).toBe("no sensors");
   });
 
+  it("treats work in progress as not ready rather than unsupported", () => {
+    const d = describeError(
+      new IpcError({ code: "unavailable", feature: "scan summary", reason: "still scanning", message: "x" }),
+      "The scan summary",
+    );
+    expect(d.quiet).toBe(true);
+    expect(d.title).toBe("The scan summary is not ready yet");
+    expect(d.detail).toBe("Sentinel is still scanning. Try again when it finishes.");
+  });
+
   it("links permission errors about files to Full Disk Access", () => {
     const d = describeError(
       new IpcError({
