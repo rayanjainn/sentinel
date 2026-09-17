@@ -10,6 +10,7 @@ pub mod audit_sqlite;
 pub mod history;
 pub mod network;
 pub mod sampling;
+pub mod storage;
 pub mod tokens;
 
 use std::time::Duration;
