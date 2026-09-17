@@ -10,12 +10,16 @@ use parking_lot::{Condvar, Mutex};
 use crate::error::{CoreResult, SentinelError};
 use crate::events::{CoreEvent, EventSink, SamplingConfig, StreamKind};
 use crate::model::*;
-use crate::platform::{self, PlatformConfig, Providers};
+use crate::platform::{self, PlatformConfig, ProcessNames, Providers};
 use crate::provider::{
     FileOps, PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider,
 };
 use crate::service::actions::ActionContext;
 use crate::service::history::{ProcessHistory, ResourceHistory};
+use crate::service::network::NetworkMonitor;
+use crate::service::network::dns::ReverseDns;
+use crate::service::network::geo::GeoDb;
+use crate::service::network::home::HomeLocator;
 use crate::service::sampling::clamp_config;
 use crate::service::{FileFilter, SystemQueries};
 
@@ -37,6 +41,11 @@ struct ProcessState {
     history: ProcessHistory,
 }
 
+struct NetworkState {
+    monitor: NetworkMonitor,
+    last: Option<(Instant, NetworkSnapshot)>,
+}
+
 struct Shared {
     sink: Arc<dyn EventSink>,
     config: Mutex<SamplingConfig>,
@@ -45,6 +54,10 @@ struct Shared {
     system_info: SystemInfo,
     resources: Mutex<ResourceState>,
     processes: Mutex<ProcessState>,
+    network: Mutex<NetworkState>,
+    process_names: Mutex<ProcessNames>,
+    geo: Arc<GeoDb>,
+    home: HomeLocator,
     process_control: Arc<dyn ProcessControl>,
     permissions: Arc<dyn PermissionProbe>,
     file_ops: Arc<dyn FileOps>,
@@ -62,6 +75,7 @@ impl CoreRuntime {
         let Providers {
             resources,
             processes,
+            network,
             process_control,
             permissions,
             file_ops,
@@ -69,6 +83,8 @@ impl CoreRuntime {
             data_dir: config.data_dir.clone(),
         });
         let system_info = resources.system_info();
+        let geo = Arc::new(GeoDb::open(&config.data_dir.join("geo")));
+        let dns = Arc::new(ReverseDns::new(Arc::clone(&sink)));
         let shared = Arc::new(Shared {
             sink,
             config: Mutex::new(SamplingConfig::default()),
@@ -85,6 +101,16 @@ impl CoreRuntime {
                 last: None,
                 history: ProcessHistory::default(),
             }),
+            network: Mutex::new(NetworkState {
+                monitor: NetworkMonitor::new(network, dns, Arc::clone(&geo)),
+                last: None,
+            }),
+            process_names: Mutex::new(ProcessNames::default()),
+            geo,
+            home: HomeLocator::new(
+                config.data_dir.join("settings").join("home_location.json"),
+                Box::new(platform::system_time_zone),
+            ),
             process_control,
             permissions,
             file_ops,
@@ -140,6 +166,53 @@ impl CoreRuntime {
         self.shared.file_ops.reveal(std::path::Path::new(&exe))
     }
 
+    pub fn geo_db_status(&self) -> GeoDbStatus {
+        self.shared.geo.status()
+    }
+
+    /// Starts the geolocation database download in the background; progress arrives as
+    /// `sentinel:geo-db` events.
+    pub fn download_geo_db(&self) -> CoreResult<()> {
+        #[cfg(feature = "native")]
+        {
+            if self.shared.geo.is_downloading() {
+                return Ok(());
+            }
+            self.shared.geo.set_downloading(0, None);
+            let shared = Arc::clone(&self.shared);
+            std::thread::Builder::new()
+                .name("sentinel-geo-download".into())
+                .spawn(move || {
+                    let _ = crate::service::network::download::download(
+                        &shared.geo,
+                        shared.sink.as_ref(),
+                    );
+                })
+                .map_err(|err| {
+                    SentinelError::internal(format!("could not start download: {err}"))
+                })?;
+            Ok(())
+        }
+        #[cfg(not(feature = "native"))]
+        {
+            Err(SentinelError::Unavailable {
+                feature: "geolocation database download".to_owned(),
+                reason: "this build was compiled without network download support".to_owned(),
+            })
+        }
+    }
+
+    pub fn home_location(&self) -> CoreResult<HomeLocation> {
+        self.shared.home.get()
+    }
+
+    pub fn set_home_location(
+        &self,
+        location: Option<HomeLocationInput>,
+    ) -> CoreResult<HomeLocation> {
+        self.shared.home.set(location)
+    }
+
     pub fn open_permission_settings(&self, kind: PermissionKind) -> CoreResult<()> {
         self.shared.permissions.open_settings(kind)
     }
@@ -177,6 +250,11 @@ fn sampler_loop(shared: &Shared) {
             && let Ok(snapshot) = refresh_processes(shared)
         {
             shared.sink.emit(CoreEvent::Processes(snapshot));
+        }
+        if config.streams.contains(&StreamKind::Network)
+            && let Ok(snapshot) = sample_network(shared)
+        {
+            shared.sink.emit(CoreEvent::Network(snapshot));
         }
 
         let deadline = tick_started + Duration::from_millis(u64::from(config.interval_ms));
@@ -218,6 +296,37 @@ fn refresh_processes(shared: &Shared) -> CoreResult<ProcessSnapshot> {
     state.history.record(&snapshot);
     state.last = Some((Instant::now(), snapshot.clone()));
     Ok(snapshot)
+}
+
+fn sample_network(shared: &Shared) -> CoreResult<NetworkSnapshot> {
+    let mut state = shared.network.lock();
+    let mut names = |pids: &[Pid]| process_names(shared, pids);
+    let snapshot = state.monitor.sample(&mut names)?;
+    state.last = Some((Instant::now(), snapshot.clone()));
+    Ok(snapshot)
+}
+
+/// Names from the sampled process table when it is fresh, otherwise from a light name-only scan.
+fn process_names(shared: &Shared, pids: &[Pid]) -> std::collections::HashMap<Pid, String> {
+    {
+        let state = shared.processes.lock();
+        if let Some((at, snapshot)) = &state.last
+            && at.elapsed() <= Duration::from_secs(3)
+        {
+            let by_pid: std::collections::HashMap<Pid, &str> = snapshot
+                .processes
+                .iter()
+                .map(|p| (p.pid, p.name.as_str()))
+                .collect();
+            if pids.iter().all(|pid| by_pid.contains_key(pid)) {
+                return pids
+                    .iter()
+                    .filter_map(|pid| by_pid.get(pid).map(|name| (*pid, (*name).to_owned())))
+                    .collect();
+            }
+        }
+    }
+    shared.process_names.lock().names(pids.iter().copied())
 }
 
 fn interval(shared: &Shared) -> Duration {
@@ -280,12 +389,22 @@ impl SystemQueries for CoreRuntime {
             Ok(files) => (files, None),
             Err(err) => (Vec::new(), Some(err.into())),
         };
+        let connections = self
+            .network_snapshot()
+            .map(|snapshot| {
+                snapshot
+                    .sockets
+                    .into_iter()
+                    .filter(|socket| socket.pid == Some(pid))
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(ProcessDetail {
             has_window: self.shared.process_control.has_window(pid),
             info,
             open_files,
             open_files_error,
-            connections: Vec::new(),
+            connections,
         })
     }
 
@@ -294,7 +413,16 @@ impl SystemQueries for CoreRuntime {
     }
 
     fn network_snapshot(&self) -> CoreResult<NetworkSnapshot> {
-        Err(pending("network monitoring"))
+        let fresh_for = interval(&self.shared);
+        {
+            let state = self.shared.network.lock();
+            if let Some((at, snapshot)) = &state.last
+                && at.elapsed() <= fresh_for
+            {
+                return Ok(snapshot.clone());
+            }
+        }
+        sample_network(&self.shared)
     }
 
     fn firewall_status(&self) -> FirewallStatus {

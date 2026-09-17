@@ -192,3 +192,74 @@ fn permission_probe_reports_platform() {
     #[cfg(windows)]
     assert_eq!(status.platform, sentinel_core::model::Platform::Windows);
 }
+
+#[test]
+fn loopback_listener_is_listed_with_our_pid() {
+    let (_dir, mut providers) = providers();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+    let port = listener.local_addr().expect("local addr").port();
+    let own = std::process::id();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let sockets = providers.network.sockets().expect("sockets");
+        let found = sockets.iter().find(|s| {
+            s.local_port == port
+                && s.protocol == sentinel_core::model::TransportProtocol::Tcp
+                && s.local_addr == std::net::IpAddr::from([127, 0, 0, 1])
+        });
+        if let Some(socket) = found {
+            assert_eq!(socket.pid, Some(own), "{socket:?}");
+            assert_eq!(socket.state, Some(sentinel_core::model::TcpState::Listen));
+            assert_eq!(socket.remote_addr, None);
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "listener on port {port} not reported"
+        );
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    providers
+        .network
+        .interface_counters()
+        .expect("interface counters");
+    providers.network.traffic().expect("traffic report");
+}
+
+#[test]
+fn established_loopback_connection_reports_peer() {
+    use std::io::{Read, Write};
+    let (_dir, mut providers) = providers();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("addr").port();
+    let mut client = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    let (mut server, _) = listener.accept().expect("accept");
+    client.write_all(&[7u8; 4096]).expect("write");
+    let mut buf = [0u8; 4096];
+    server.read_exact(&mut buf).expect("read");
+    let client_port = client.local_addr().expect("client addr").port();
+    let sockets = providers.network.sockets().expect("sockets");
+    let conn = sockets
+        .iter()
+        .find(|s| s.local_port == client_port && s.remote_port == Some(port))
+        .expect("client side of the connection");
+    assert_eq!(conn.pid, Some(std::process::id()));
+    assert_eq!(
+        conn.state,
+        Some(sentinel_core::model::TcpState::Established)
+    );
+    #[cfg(target_os = "macos")]
+    {
+        let traffic = providers.network.traffic().expect("traffic");
+        assert_eq!(
+            traffic.source,
+            sentinel_core::model::TrafficSource::PerConnection
+        );
+        let counted = traffic
+            .connections
+            .iter()
+            .find(|c| c.local_port == client_port && c.remote_port == Some(port))
+            .expect("connection traffic");
+        assert!(counted.bytes_out >= 4096, "{counted:?}");
+    }
+}

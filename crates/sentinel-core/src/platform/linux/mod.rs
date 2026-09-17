@@ -1,3 +1,4 @@
+mod network;
 mod permissions;
 mod process;
 
@@ -15,6 +16,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
     Providers {
         resources: Box::new(SysResources::new(LinuxResources::new())),
         processes: process_provider(),
+        network: Box::new(network::LinuxNetwork::new()),
         process_control: Arc::new(process::LinuxProcessControl),
         permissions: Arc::new(permissions::LinuxPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
@@ -165,6 +167,22 @@ impl InterfaceCounters {
                 )
             })
     }
+}
+
+pub(crate) fn system_time_zone() -> Option<String> {
+    use crate::parse::zonetab::zone_from_path;
+    if let Some(zone) = std::env::var("TZ").ok().and_then(|tz| zone_from_path(&tz)) {
+        return Some(zone);
+    }
+    if let Some(zone) = std::fs::read_link("/etc/localtime")
+        .ok()
+        .and_then(|target| zone_from_path(&target.to_string_lossy()))
+    {
+        return Some(zone);
+    }
+    std::fs::read_to_string("/etc/timezone")
+        .ok()
+        .and_then(|text| zone_from_path(text.trim()))
 }
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ use crate::provider::*;
 mod command;
 mod fileops;
 mod identity;
+mod proc_names;
 mod proc_table;
 mod sys_resources;
 
@@ -33,6 +34,7 @@ mod windows;
 use windows as os;
 
 pub use identity::current_identity;
+pub use proc_names::ProcessNames;
 
 /// Where platform components may keep small state files (firewall bookkeeping, etc.).
 #[derive(Debug, Clone)]
@@ -45,6 +47,7 @@ pub struct PlatformConfig {
 pub struct Providers {
     pub resources: Box<dyn ResourceProvider>,
     pub processes: Box<dyn ProcessProvider>,
+    pub network: Box<dyn NetworkProvider>,
     pub process_control: Arc<dyn ProcessControl>,
     pub permissions: Arc<dyn PermissionProbe>,
     pub file_ops: Arc<dyn FileOps>,
@@ -58,4 +61,9 @@ pub fn current(config: &PlatformConfig) -> Providers {
 /// sampler).
 pub fn new_process_provider() -> Box<dyn ProcessProvider> {
     os::process_provider()
+}
+
+/// IANA name of the system time zone (e.g. "Europe/Paris").
+pub fn system_time_zone() -> Option<String> {
+    os::system_time_zone()
 }
