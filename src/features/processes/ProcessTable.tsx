@@ -71,7 +71,7 @@ const ProcessRow = memo(function ProcessRow({
   score,
   selected,
 }: RowProps) {
-  const tint = score > 0 ? `color-mix(in srgb, var(--danger) ${Math.round(score * 16)}%, transparent)` : undefined;
+  const tint = score > 0 ? `color-mix(in srgb, var(--danger) ${Math.round(4 + score * 10)}%, transparent)` : undefined;
   const nameOffset = tree ? 10 + depth * INDENT + 18 : 12;
 
   return (
@@ -137,14 +137,7 @@ const ProcessRow = memo(function ProcessRow({
         <span className={cx("size-1.5 shrink-0 rounded-full", STATUS_DOT[p.status])} />
         <span className="truncate">{STATUS_LABEL[p.status]}</span>
       </div>
-      <div role="gridcell" className="relative flex h-full items-center justify-end px-3">
-        <span className="num">{formatPercent(p.cpuPercent)}</span>
-        <span
-          aria-hidden
-          className="absolute bottom-[5px] right-3 h-px w-[calc(100%-24px)] origin-right bg-[var(--viz-1)] opacity-60"
-          style={{ transform: `scaleX(${Math.min(1, p.cpuPercent / 100)})` }}
-        />
-      </div>
+      <div role="gridcell" className="num px-3 text-right">{formatPercent(p.cpuPercent)}</div>
       <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatPercent(p.cpuPercentAvg)}</div>
       <div role="gridcell" className="num px-3 text-right">{formatBytes(p.memoryRss)}</div>
       <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatBytes(p.memoryVirtual)}</div>

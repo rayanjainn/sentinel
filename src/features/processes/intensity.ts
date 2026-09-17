@@ -33,15 +33,20 @@ export interface IntensityModel {
   memory: (p: ProcessInfo) => number;
 }
 
+/** Share of processes allowed to stand out at once; a few hundred rows should show only a handful. */
+export const OUTLIER_QUANTILE = 0.985;
+
 export function intensityModel(processes: ProcessInfo[], totalMemory: number): IntensityModel {
-  // Floors: 2% of one core, 0.5% of physical memory.
+  // Noise floors: 5% of one core, 2% of physical memory.
   const cpuScale = relativeScale(
     processes.map((p) => p.cpuPercent),
-    2,
+    5,
+    OUTLIER_QUANTILE,
   );
   const memScale = relativeScale(
     processes.map((p) => p.memoryRss),
-    totalMemory > 0 ? totalMemory * 0.005 : 0,
+    totalMemory > 0 ? totalMemory * 0.02 : 0,
+    OUTLIER_QUANTILE,
   );
   const cpu = (p: ProcessInfo) => cpuScale(p.cpuPercent);
   const memory = (p: ProcessInfo) => memScale(p.memoryRss);
