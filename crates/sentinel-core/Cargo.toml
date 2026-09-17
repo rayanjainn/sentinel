@@ -1,0 +1,16 @@
+[package]
+name = "sentinel-core"
+description = "Cross-platform system introspection and action layer for Sentinel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ts-rs.workspace = true
+
+[lints]
+workspace = true

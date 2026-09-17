@@ -1,0 +1,5 @@
+[env]
+# TypeScript bindings generated from the Rust contract types (`cargo test -p sentinel-core -p sentinel-agent export_bindings`).
+TS_RS_EXPORT_DIR = { value = "src/bindings", relative = true }
+# u64/i64 values (bytes, timestamps) stay well below 2^53, so plain `number` is safe and avoids bigint friction in the UI.
+TS_RS_LARGE_INT = "number"
