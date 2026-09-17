@@ -1,0 +1,65 @@
+---
+import Docs from "../../layouts/Docs.astro";
+import { docHref, getDocSections } from "../../lib/docs";
+
+const sections = await getDocSections();
+---
+
+<Docs
+  title="Sentinel documentation"
+  description="How to install Sentinel, what each module shows, and exactly what the agent can and can't do on your computer."
+>
+  <p>
+    New to Sentinel? Start with <a href={docHref("install")}>Install</a>, then
+    <a href={docHref("getting-started")}>Getting started</a> for a tour of the app. If you plan to use
+    the agent, read <a href={docHref("agent-safety")}>How the agent stays safe</a> first.
+  </p>
+
+  {
+    sections.map((section) => (
+      <>
+        <h2>{section.title}</h2>
+        <ul class="doc-index">
+          {section.entries.map((entry) => (
+            <li>
+              <a href={docHref(entry.id)}>{entry.data.title}</a>
+              <span>{entry.data.description}</span>
+            </li>
+          ))}
+        </ul>
+      </>
+    ))
+  }
+</Docs>
+
+<style>
+  .doc-index {
+    display: grid;
+    gap: 0;
+    padding: 0 !important;
+    list-style: none;
+  }
+
+  .doc-index li {
+    display: grid;
+    gap: 2px;
+    margin: 0 !important;
+    padding-block: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-index a {
+    font-weight: 560;
+    text-decoration: none !important;
+  }
+
+  .doc-index a:hover {
+    color: var(--signal) !important;
+  }
+
+  .doc-index span {
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+</style>
