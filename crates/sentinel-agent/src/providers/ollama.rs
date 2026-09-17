@@ -24,9 +24,10 @@ pub const DEFAULT_LOCAL_URL: &str = "http://127.0.0.1:11434";
 pub const CLOUD_URL: &str = "https://ollama.com";
 pub const RECOMMENDED_LOCAL_MODEL: &str = "llama3.1:8b";
 pub const RECOMMENDED_CLOUD_MODEL: &str = "gpt-oss:120b";
-/// Local context window requested per chat: the system prompt plus 21 tool schemas alone is ~5k
-/// tokens, far beyond Ollama's small default.
-const LOCAL_NUM_CTX: u64 = 32_768;
+/// Local context window requested per chat. The system prompt plus 21 tool schemas take ~3-5k
+/// tokens, beyond Ollama's small default; 16k leaves room for several tool rounds while keeping an
+/// 8B model's KV cache small enough for 16 GB machines.
+const LOCAL_NUM_CTX: u64 = 16_384;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ModelCapabilities {
