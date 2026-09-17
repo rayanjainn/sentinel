@@ -306,11 +306,27 @@ fn trashed_temp_file_lands_in_trash_not_unlinked() {
     }
     #[cfg(any(target_os = "linux", windows))]
     {
+        // Windows canonicalize() adds a `\\?\` verbatim prefix, and the trash crate's own
+        // Recycle Bin metadata may or may not carry the same prefix, so a byte-exact path match
+        // is fragile here. Canonicalize both sides the same way before comparing.
+        fn normalize(path: &std::path::Path) -> std::path::PathBuf {
+            let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+            #[cfg(windows)]
+            {
+                let text = canonical.to_string_lossy();
+                if let Some(rest) = text.strip_prefix(r"\\?\") {
+                    return std::path::PathBuf::from(rest);
+                }
+            }
+            canonical
+        }
+        let work_path = normalize(work.path());
         let items = trash::os_limited::list().expect("list trash");
         let ours: Vec<_> = items
             .into_iter()
             .filter(|item| {
-                item.name == std::ffi::OsString::from(&name) && item.original_parent == work.path()
+                item.name == std::ffi::OsString::from(&name)
+                    && normalize(&item.original_parent) == work_path
             })
             .collect();
         assert_eq!(ours.len(), 1, "expected exactly one trashed copy");
