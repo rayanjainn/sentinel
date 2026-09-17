@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldSlash, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, ShieldCheck, ShieldSlash, Trash } from "@phosphor-icons/react";
 import { useEffect } from "react";
 
 import type { FirewallBackend } from "../../bindings/FirewallBackend";
@@ -29,6 +29,12 @@ function ruleTarget(rule: FirewallRule): { text: string; mono: boolean } {
   return rule.target.type === "remoteIp"
     ? { text: rule.target.ip, mono: true }
     : { text: `Port ${rule.target.port} ${rule.target.protocol.toUpperCase()}`, mono: false };
+}
+
+/** Re-sending the stored target re-applies a rule that a restart cleared from the OS firewall. */
+async function reapplyRule(rule: FirewallRule) {
+  const outcome = await runAction({ type: "addFirewallRule", target: rule.target, direction: rule.direction });
+  if (outcome) void useNetwork.getState().loadFirewall();
 }
 
 async function removeRule(rule: FirewallRule) {
@@ -119,7 +125,7 @@ export function FirewallRules() {
             {rules.map((rule) => {
               const target = ruleTarget(rule);
               return (
-                <li key={rule.id} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_140px_120px_auto] items-center gap-4 py-2.5">
+                <li key={rule.id} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_140px_110px_minmax(210px,auto)] items-center gap-4 py-2.5">
                   <span className={cx("selectable truncate text-fg", target.mono && "num")}>{target.text}</span>
                   <span className="text-[12px] text-fg-muted">{DIRECTION_LABEL[rule.direction]}</span>
                   <span className="text-[12px] text-fg-muted" title={formatDateTime(rule.createdAtMs)}>
@@ -129,9 +135,16 @@ export function FirewallRules() {
                     <span className={cx("size-1.5 rounded-full", rule.active ? "bg-signal" : "bg-fg-subtle")} />
                     {rule.active ? "Active" : "Not active"}
                   </span>
-                  <Button size="sm" variant="dangerQuiet" icon={<Trash size={13} />} onClick={() => void removeRule(rule)}>
-                    Remove rule
-                  </Button>
+                  <span className="flex justify-end gap-1.5">
+                    {!rule.active && (
+                      <Button size="sm" icon={<ArrowClockwise size={13} />} onClick={() => void reapplyRule(rule)}>
+                        Apply again
+                      </Button>
+                    )}
+                    <Button size="sm" variant="dangerQuiet" icon={<Trash size={13} />} onClick={() => void removeRule(rule)}>
+                      Remove rule
+                    </Button>
+                  </span>
                 </li>
               );
             })}
