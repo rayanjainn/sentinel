@@ -1,12 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import type { ComponentType } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 
-import { EmptyState, StatePanel } from "../components/States";
+import { SkeletonRows } from "../components/Skeleton";
 import { AuditLogView } from "../features/agent";
-import { NetworkView } from "../features/network/NetworkView";
-import { ProcessesView } from "../features/processes/ProcessesView";
-import { ResourcesView } from "../features/resources/ResourcesView";
-import { StorageView } from "../features/storage/StorageView";
 import { SettingsView } from "../features/settings/SettingsView";
 import type { ViewId } from "../stores/settings";
 import { useSettings } from "../stores/settings";
@@ -22,26 +18,28 @@ function ActivityView() {
   );
 }
 
-const VIEWS: Partial<Record<ViewId, ComponentType>> = {
-  processes: ProcessesView,
-  network: NetworkView,
-  resources: ResourcesView,
-  storage: StorageView,
+// Monitoring views load on first visit so the map, charts and treemap code stay out of startup.
+const VIEWS: Record<ViewId, ComponentType> = {
+  processes: lazy(() => import("../features/processes/ProcessesView").then((m) => ({ default: m.ProcessesView }))),
+  network: lazy(() => import("../features/network/NetworkView").then((m) => ({ default: m.NetworkView }))),
+  resources: lazy(() => import("../features/resources/ResourcesView").then((m) => ({ default: m.ResourcesView }))),
+  storage: lazy(() => import("../features/storage/StorageView").then((m) => ({ default: m.StorageView }))),
   activity: ActivityView,
   settings: SettingsView,
 };
 
-function MissingView() {
+function ViewFallback() {
   return (
-    <StatePanel>
-      <EmptyState title="This view is not part of this build" detail="Choose another view from the sidebar." />
-    </StatePanel>
+    <div className="h-full overflow-hidden">
+      <div className="h-[30px] border-b border-line" />
+      <SkeletonRows rows={16} columns={[5, 2, 2, 2, 2, 3]} />
+    </div>
   );
 }
 
 export function AppShell() {
   const view = useSettings((s) => s.view);
-  const View = VIEWS[view] ?? MissingView;
+  const View = VIEWS[view];
   return (
     <div className="flex h-full bg-ground">
       <Sidebar />
@@ -57,7 +55,9 @@ export function AppShell() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
             >
-              <View />
+              <Suspense fallback={<ViewFallback />}>
+                <View />
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </main>
