@@ -4,5 +4,8 @@
  * Every fallible backend call returns this. Variants carry enough context for the UI to render a
  * specific message ("Permission denied reading /Library/Caches — grant Full Disk Access") instead
  * of a generic failure. Serialized with a `code` discriminator.
+ *
+ * No variant may have a field named `message`: [`ErrorPayload`] flattens this enum next to its own
+ * `message`.
  */
-export type SentinelError = { "code": "permissionDenied", operation: string, target: string | null, hint: string | null, } | { "code": "processNotFound", pid: number, } | { "code": "processChanged", pid: number, } | { "code": "pathNotFound", path: string, } | { "code": "unavailable", feature: string, reason: string, } | { "code": "elevationDeclined", operation: string, } | { "code": "invalidInput", message: string, } | { "code": "actionTokenInvalid" } | { "code": "cancelled" } | { "code": "network", message: string, } | { "code": "provider", provider: string, status: number | null, message: string, } | { "code": "io", message: string, path: string | null, } | { "code": "internal", message: string, };
+export type SentinelError = { "code": "permissionDenied", operation: string, target: string | null, hint: string | null, } | { "code": "processNotFound", pid: number, } | { "code": "processChanged", pid: number, } | { "code": "pathNotFound", path: string, } | { "code": "unavailable", feature: string, reason: string, } | { "code": "elevationDeclined", operation: string, } | { "code": "invalidInput", detail: string, } | { "code": "actionTokenInvalid" } | { "code": "cancelled" } | { "code": "network", detail: string, } | { "code": "provider", provider: string, status: number | null, detail: string, } | { "code": "io", detail: string, path: string | null, } | { "code": "internal", detail: string, };

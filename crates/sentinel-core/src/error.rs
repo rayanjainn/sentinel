@@ -12,6 +12,9 @@ pub type CoreResult<T> = Result<T, SentinelError>;
 /// Every fallible backend call returns this. Variants carry enough context for the UI to render a
 /// specific message ("Permission denied reading /Library/Caches — grant Full Disk Access") instead
 /// of a generic failure. Serialized with a `code` discriminator.
+///
+/// No variant may have a field named `message`: [`ErrorPayload`] flattens this enum next to its own
+/// `message`.
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Serialize, Deserialize, TS)]
 #[serde(
     tag = "code",
@@ -38,27 +41,27 @@ pub enum SentinelError {
     /// User dismissed the OS administrator/UAC/polkit prompt.
     #[error("administrator authorization was declined for: {operation}")]
     ElevationDeclined { operation: String },
-    #[error("invalid input: {message}")]
-    InvalidInput { message: String },
+    #[error("invalid input: {detail}")]
+    InvalidInput { detail: String },
     #[error("this action preview has expired or was already used; review it again")]
     ActionTokenInvalid,
     #[error("operation cancelled")]
     Cancelled,
-    #[error("network error: {message}")]
-    Network { message: String },
-    #[error("{provider} API error: {message}")]
+    #[error("network error: {detail}")]
+    Network { detail: String },
+    #[error("{provider} API error: {detail}")]
     Provider {
         provider: String,
         status: Option<u16>,
-        message: String,
+        detail: String,
     },
-    #[error("i/o error: {message}")]
+    #[error("i/o error: {detail}")]
     Io {
-        message: String,
+        detail: String,
         path: Option<String>,
     },
-    #[error("internal error: {message}")]
-    Internal { message: String },
+    #[error("internal error: {detail}")]
+    Internal { detail: String },
 }
 
 impl SentinelError {
@@ -72,21 +75,21 @@ impl SentinelError {
             },
             (ErrorKind::NotFound, Some(path)) => Self::PathNotFound { path },
             (_, path) => Self::Io {
-                message: err.to_string(),
+                detail: err.to_string(),
                 path,
             },
         }
     }
 
-    pub fn internal(message: impl Display) -> Self {
+    pub fn internal(detail: impl Display) -> Self {
         Self::Internal {
-            message: message.to_string(),
+            detail: detail.to_string(),
         }
     }
 
-    pub fn invalid(message: impl Display) -> Self {
+    pub fn invalid(detail: impl Display) -> Self {
         Self::InvalidInput {
-            message: message.to_string(),
+            detail: detail.to_string(),
         }
     }
 }
@@ -104,5 +107,35 @@ impl From<SentinelError> for ErrorPayload {
     fn from(error: SentinelError) -> Self {
         let message = error.to_string();
         Self { error, message }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn payload_json_has_single_message_key() {
+        let payload = ErrorPayload::from(SentinelError::Network {
+            detail: "offline".into(),
+        });
+        let json = serde_json::to_string(&payload).unwrap();
+        assert_eq!(json.matches("\"message\"").count(), 1, "{json}");
+        let back: ErrorPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, payload);
+    }
+
+    #[test]
+    fn io_error_maps_permission_and_not_found() {
+        let denied = std::io::Error::from(ErrorKind::PermissionDenied);
+        assert!(matches!(
+            SentinelError::io(&denied, Some(Path::new("/x"))),
+            SentinelError::PermissionDenied { .. }
+        ));
+        let missing = std::io::Error::from(ErrorKind::NotFound);
+        assert_eq!(
+            SentinelError::io(&missing, Some(Path::new("/x"))),
+            SentinelError::PathNotFound { path: "/x".into() }
+        );
     }
 }
