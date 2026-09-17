@@ -2,12 +2,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { lazy, Suspense, type ComponentType } from "react";
 
 import { SkeletonRows } from "../components/Skeleton";
+import { ViewBoundary } from "../components/ViewBoundary";
 import { AuditLogView } from "../features/agent";
 import { SettingsView } from "../features/settings/SettingsView";
 import type { ViewId } from "../stores/settings";
 import { useSettings } from "../stores/settings";
 import { AgentDock } from "./AgentDock";
 import { Header } from "./Header";
+import { NAV_ITEMS } from "./navigation";
 import { Sidebar } from "./Sidebar";
 
 function ActivityView() {
@@ -55,9 +57,11 @@ export function AppShell() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
             >
-              <Suspense fallback={<ViewFallback />}>
-                <View />
-              </Suspense>
+              <ViewBoundary key={view} name={NAV_ITEMS.find((n) => n.id === view)?.label ?? "This view"}>
+                <Suspense fallback={<ViewFallback />}>
+                  <View />
+                </Suspense>
+              </ViewBoundary>
             </motion.div>
           </AnimatePresence>
         </main>
