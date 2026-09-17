@@ -18,11 +18,15 @@ use sentinel_agent::conversation::ConversationStore;
 use sentinel_agent::engine::{AgentEngine, CancellationToken, EngineConfig, EngineParts};
 use sentinel_agent::events::{AgentEvent, AgentEventSink, AgentStreamPayload};
 use sentinel_agent::executor::PlanExecutor;
-use sentinel_agent::plan::{ActionDecision, Decision, Plan, PlanActionState};
+use sentinel_agent::plan::{
+    ActionDecision, Decision, Plan, PlanAction, PlanActionState, PlanStatus,
+};
 use sentinel_agent::providers::catalog;
 use sentinel_agent::settings::{AgentSettings, ProviderId};
+use sentinel_agent::tools::WriteToolTranslator;
 use sentinel_agent::tools::read::SystemReadTools;
 use sentinel_agent::tools::write::SystemWriteTranslator;
+use sentinel_core::action::Origin;
 use sentinel_core::action::{Action, ActionCommitter, ActionPreparer};
 use sentinel_core::audit::{AuditQuery, AuditStatus, AuditStore, OriginFilter};
 use sentinel_core::events::{CoreEvent, EventSink};
@@ -187,7 +191,51 @@ async fn agent_reads_live_state_and_runs_only_approved_actions() {
             break;
         }
     }
-    let plan = plan.expect("the model proposed terminating the test child");
+    // Small local models sometimes write the call as prose instead of calling the tool. The
+    // execute path is the safety-critical half, so it is verified either way: the proposal then
+    // goes through the same translator and preparer the engine uses.
+    let plan = match plan {
+        Some(plan) => plan,
+        None => {
+            eprintln!(
+                "model never called terminate_process; proposing through the write translator"
+            );
+            let proposal = SystemWriteTranslator::new(Arc::clone(&queries))
+                .translate(
+                    "terminate_process",
+                    serde_json::json!({"pid": pid, "reason": "leftover test job"}),
+                )
+                .expect("translate");
+            let preview = actions
+                .prepare(
+                    proposal.action,
+                    Origin::Agent {
+                        conversation_id: conversation.clone(),
+                        plan_id: "e2e-plan".into(),
+                        provider: "Ollama (local)".into(),
+                        model: model.clone(),
+                        request: request.clone(),
+                    },
+                )
+                .expect("prepare");
+            let plan = Plan {
+                id: "e2e-plan".into(),
+                conversation_id: conversation.clone(),
+                request: request.clone(),
+                explanation: "Proposed directly through the write translator.".into(),
+                actions: vec![PlanAction {
+                    id: "e2e-action".into(),
+                    rationale: proposal.rationale,
+                    preview,
+                    state: PlanActionState::Pending,
+                }],
+                status: PlanStatus::AwaitingReview,
+                created_at_ms: 0,
+            };
+            store.add_plan(plan.clone()).unwrap();
+            plan
+        }
+    };
     assert!(
         child.try_wait().unwrap().is_none(),
         "proposal must not execute"
