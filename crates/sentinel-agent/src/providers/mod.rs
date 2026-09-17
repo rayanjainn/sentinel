@@ -3,6 +3,7 @@
 pub mod anthropic;
 pub mod gemini;
 pub mod http;
+pub mod ollama;
 pub mod openai;
 pub mod stream;
 
@@ -126,6 +127,16 @@ pub(crate) mod test_support {
         }
         out.extend(parser.finish());
         out
+    }
+
+    pub fn ndjson_values(fixture: &str, split: usize) -> Vec<Value> {
+        let mut parser = NdjsonParser::new();
+        let mut out = Vec::new();
+        for chunk in fixture.as_bytes().chunks(split.max(1)) {
+            out.extend(parser.push(chunk));
+        }
+        out.extend(parser.finish());
+        out.into_iter().map(|v| v.expect("fixture line")).collect()
     }
 }
 
