@@ -11,13 +11,16 @@ import { cx } from "../../lib/cx";
 import { formatBytes, formatDateTime, formatDuration, formatNice, formatPercent } from "../../lib/format";
 import { useVirtualRows } from "../../lib/virtual";
 import { useProcesses } from "../../stores/processes";
+import { groupByApp } from "./appGroups";
 import { COLUMNS, comparator, GRID_TEMPLATE, queryMatcher, STATUS_LABEL, statusMatches } from "./columns";
 import { intensityModel } from "./intensity";
 import { processMenuItems } from "./processActions";
 import { buildForest, flattenForest, processKey, type TreeRow } from "./tree";
 import { useProcessView } from "./viewState";
 
-const ROW_HEIGHT = 28;
+// "Comfortable" per DESIGN.md, rather than the 28px dense row, so every process can carry its
+// plain-language subtitle without crowding the name.
+const ROW_HEIGHT = 34;
 const HEADER_HEIGHT = 30;
 const INDENT = 16;
 const MIN_WIDTH = 1080;
@@ -56,6 +59,9 @@ interface RowProps {
   descendants: number;
   score: number;
   selected: boolean;
+  /** An app-group header (synthetic totals row), not a real process: clicking expands the group
+   * instead of opening the drawer, and it carries no process actions. */
+  isAppGroup?: boolean;
 }
 
 const ProcessRow = memo(function ProcessRow({
@@ -71,6 +77,7 @@ const ProcessRow = memo(function ProcessRow({
   descendants,
   score,
   selected,
+  isAppGroup,
 }: RowProps) {
   const tint = score > 0 ? `color-mix(in srgb, var(--danger) ${Math.round(4 + score * 10)}%, transparent)` : undefined;
   const nameOffset = tree ? 10 + depth * INDENT + 18 : 12;
@@ -85,11 +92,17 @@ const ProcessRow = memo(function ProcessRow({
       data-index={index}
       className={cx(
         "group absolute left-0 right-0 grid items-center text-[12px]",
+        isAppGroup ? "cursor-default bg-ground font-medium" : "cursor-default",
         selected ? "bg-signal/12 text-fg" : "text-fg hover:bg-raised/70",
       )}
       style={{ gridTemplateColumns: GRID_TEMPLATE, height: ROW_HEIGHT, transform: `translateY(${index * ROW_HEIGHT}px)`, backgroundColor: selected ? undefined : tint }}
-      onClick={() => useProcessView.getState().select({ pid: p.pid, startTime: p.startTime }, true)}
+      onClick={() =>
+        isAppGroup
+          ? useProcessView.getState().toggleAppExpanded(rowKey)
+          : useProcessView.getState().select({ pid: p.pid, startTime: p.startTime }, true)
+      }
       onContextMenu={(event) => {
+        if (isAppGroup) return;
         useProcessView.getState().select({ pid: p.pid, startTime: p.startTime });
         openContextMenu(event, processMenuItems(p), `Actions for ${p.name}`);
       }}
@@ -117,7 +130,8 @@ const ProcessRow = memo(function ProcessRow({
             aria-label={expanded ? `Collapse ${p.name}` : `Expand ${p.name}`}
             onClick={(event) => {
               event.stopPropagation();
-              useProcessView.getState().toggleCollapsed(rowKey);
+              if (isAppGroup) useProcessView.getState().toggleAppExpanded(rowKey);
+              else useProcessView.getState().toggleCollapsed(rowKey);
             }}
             className="absolute flex size-4 items-center justify-center rounded-[3px] text-fg-muted hover:bg-line-strong hover:text-fg"
             style={{ left: 10 + depth * INDENT }}
@@ -125,30 +139,39 @@ const ProcessRow = memo(function ProcessRow({
             <CaretRight size={10} weight="bold" className={cx("transition-transform duration-150", expanded && "rotate-90")} />
           </button>
         )}
-        <span className="truncate" title={p.cmd.length > 0 ? p.cmd.join(" ") : p.name}>
-          {p.name}
-        </span>
+        <div className="flex min-w-0 flex-col justify-center">
+          <span className="truncate" title={p.cmd.length > 0 ? p.cmd.join(" ") : p.name}>
+            {p.name}
+          </span>
+          {p.summary.headline && (
+            <span className="truncate text-[10px] leading-tight text-fg-subtle">{p.summary.headline}</span>
+          )}
+        </div>
         {tree && hasChildren && !expanded && (
-          <span className="num ml-2 shrink-0 rounded-[4px] bg-line-strong px-1 text-[11px] text-fg-muted">+{descendants}</span>
+          <span className="num ml-2 shrink-0 self-center rounded-[4px] bg-line-strong px-1 text-[11px] text-fg-muted">+{descendants}</span>
         )}
       </div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{p.pid}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : p.pid}</div>
       <div role="gridcell" className="truncate px-3 text-fg-muted">{p.user ?? "—"}</div>
       <div role="gridcell" className="flex items-center gap-1.5 px-3 text-fg-muted">
-        <span className={cx("size-1.5 shrink-0 rounded-full", STATUS_DOT[p.status])} />
-        <span className="truncate">{STATUS_LABEL[p.status]}</span>
+        {!isAppGroup && (
+          <>
+            <span className={cx("size-1.5 shrink-0 rounded-full", STATUS_DOT[p.status])} />
+            <span className="truncate">{STATUS_LABEL[p.status]}</span>
+          </>
+        )}
       </div>
       <div role="gridcell" className="num px-3 text-right">{formatPercent(p.cpuPercent)}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatPercent(p.cpuPercentAvg)}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : formatPercent(p.cpuPercentAvg)}</div>
       <div role="gridcell" className="num px-3 text-right">{formatBytes(p.memoryRss)}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatBytes(p.memoryVirtual)}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{p.threadCount ?? "—"}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{p.fdCount ?? "—"}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatNice(p.nice)}</div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted" title={formatDateTime(p.startTime * 1000)}>
-        {startedLabel(p.startTime)}
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : formatBytes(p.memoryVirtual)}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : p.threadCount ?? "—"}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : p.fdCount ?? "—"}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : formatNice(p.nice)}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted" title={isAppGroup ? undefined : formatDateTime(p.startTime * 1000)}>
+        {isAppGroup ? "—" : startedLabel(p.startTime)}
       </div>
-      <div role="gridcell" className="num px-3 text-right text-fg-muted">{formatDuration(p.runTimeSecs)}</div>
+      <div role="gridcell" className="num px-3 text-right text-fg-muted">{isAppGroup ? "—" : formatDuration(p.runTimeSecs)}</div>
     </div>
   );
 });
@@ -207,6 +230,7 @@ export function ProcessTable() {
   const statusFilter = useProcessView((s) => s.status);
   const user = useProcessView((s) => s.user);
   const collapsed = useProcessView((s) => s.collapsed);
+  const expandedApps = useProcessView((s) => s.expandedApps);
   const selected = useProcessView((s) => s.selected);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +245,81 @@ export function ProcessTable() {
 
   const rows = useMemo<TreeRow[]>(() => {
     if (mode === "tree") return flattenForest(buildForest(processes), { collapsed, compare, match: matcher });
+    if (mode === "grouped") {
+      const list = matcher ? processes.filter(matcher) : processes;
+      const out: TreeRow[] = [];
+      for (const item of groupByApp(list)) {
+        if (item.kind === "single") {
+          out.push({
+            process: item.process,
+            key: processKey(item.process),
+            depth: 0,
+            hasChildren: false,
+            expanded: false,
+            descendantCount: 0,
+            guides: [],
+            isLast: false,
+          });
+          continue;
+        }
+        const { group } = item;
+        const key = `app:${group.appName}`;
+        const expanded = expandedApps.has(key);
+        const synthetic: ProcessInfo = {
+          pid: -1,
+          ppid: null,
+          name: group.appName,
+          cmd: [],
+          exe: null,
+          user: null,
+          status: "running",
+          cpuPercent: group.totalCpu,
+          cpuPercentAvg: group.totalCpu,
+          memoryRss: group.totalMemory,
+          memoryVirtual: 0,
+          startTime: 0,
+          runTimeSecs: 0,
+          threadCount: null,
+          fdCount: null,
+          nice: null,
+          summary: {
+            headline: `${group.members.length} processes, ${formatBytes(group.totalMemory)}`,
+            appName: group.appName,
+            role: "unknown",
+            category: "appHelper",
+            quitSafety: "unknown",
+            confidence: "known",
+          },
+        };
+        out.push({
+          process: synthetic,
+          key,
+          depth: 0,
+          hasChildren: true,
+          expanded,
+          descendantCount: group.members.length,
+          guides: [],
+          isLast: false,
+          isAppGroup: true,
+        });
+        if (expanded) {
+          const members = [...group.members].sort(compare);
+          members.forEach((p, i) =>
+            out.push({
+              process: p,
+              key: processKey(p),
+              depth: 1,
+              hasChildren: false,
+              expanded: false,
+              descendantCount: 0,
+              guides: [true],
+              isLast: i === members.length - 1,
+            }),
+          );
+        }
+      }
+      return out;
+    }
     const list = matcher ? processes.filter(matcher) : [...processes];
     list.sort(compare);
     return list.map((p) => ({
@@ -233,7 +332,7 @@ export function ProcessTable() {
       guides: [],
       isLast: false,
     }));
-  }, [mode, processes, collapsed, compare, matcher]);
+  }, [mode, processes, collapsed, expandedApps, compare, matcher]);
 
   const { start, end, totalHeight, scrollToIndex } = useVirtualRows(scrollRef, rows.length, ROW_HEIGHT, {
     headerOffset: HEADER_HEIGHT,
@@ -268,9 +367,12 @@ export function ProcessTable() {
         event.preventDefault();
         move(rows.length - 1);
         break;
-      case "Enter":
-        if (selected) view.select(selected, true);
+      case "Enter": {
+        const current = rows[selectedIndex];
+        if (current?.isAppGroup) view.toggleAppExpanded(current.key);
+        else if (selected) view.select(selected, true);
         break;
+      }
       case "Escape":
         if (view.drawerOpen) view.closeDrawer();
         else view.select(null);
@@ -278,10 +380,11 @@ export function ProcessTable() {
       case "ArrowRight":
       case "ArrowLeft": {
         const row = rows[selectedIndex];
-        if (mode !== "tree" || !row) break;
+        if ((mode !== "tree" && mode !== "grouped") || !row) break;
         event.preventDefault();
-        if (event.key === "ArrowRight" && row.hasChildren && !row.expanded) view.toggleCollapsed(row.key);
-        else if (event.key === "ArrowLeft" && row.hasChildren && row.expanded) view.toggleCollapsed(row.key);
+        const toggle = row.isAppGroup ? view.toggleAppExpanded : view.toggleCollapsed;
+        if (event.key === "ArrowRight" && row.hasChildren && !row.expanded) toggle(row.key);
+        else if (event.key === "ArrowLeft" && row.hasChildren && row.expanded) toggle(row.key);
         else if (event.key === "ArrowLeft" && row.depth > 0) {
           for (let i = selectedIndex - 1; i >= 0; i -= 1) {
             if (rows[i]!.depth === row.depth - 1) {
@@ -355,15 +458,16 @@ export function ProcessTable() {
                   process={row.process}
                   rowKey={row.key}
                   index={index}
-                  tree={mode === "tree"}
+                  tree={mode === "tree" || mode === "grouped"}
                   depth={row.depth}
                   hasChildren={row.hasChildren}
                   expanded={row.expanded}
                   guides={row.guides.map((g) => (g ? "1" : "0")).join("")}
                   isLast={row.isLast}
                   descendants={row.descendantCount}
-                  score={intensity.score(row.process)}
+                  score={row.isAppGroup ? 0 : intensity.score(row.process)}
                   selected={index === selectedIndex}
+                  isAppGroup={row.isAppGroup}
                 />
               );
             })}

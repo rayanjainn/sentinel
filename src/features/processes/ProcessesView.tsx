@@ -1,4 +1,4 @@
-import { ListBullets, TreeStructure } from "@phosphor-icons/react";
+import { ListBullets, Stack, TreeStructure } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
 import { SearchField, Select } from "../../components/Field";
@@ -36,6 +36,11 @@ function ProcessToolbar() {
         options={[
           { value: "list", label: <><ListBullets size={13} /> List</> },
           { value: "tree", label: <><TreeStructure size={13} /> Tree</> },
+          {
+            value: "grouped",
+            label: <><Stack size={13} /> Grouped</>,
+            title: "Groups helper processes under their app, e.g. \"Brave Browser — 41 processes, 3.2 GB\"",
+          },
         ]}
       />
       <SearchField value={query} onChange={setQuery} placeholder="Search processes" label="Search processes" focusShortcut className="w-64" />

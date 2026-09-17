@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { ProcessIdentity } from "../../bindings/ProcessIdentity";
 import { COLUMNS, type SortDir, type SortKey, type StatusFilter } from "./columns";
 
-export type ProcessMode = "list" | "tree";
+export type ProcessMode = "list" | "tree" | "grouped";
 
 interface ProcessViewState {
   mode: ProcessMode;
@@ -15,6 +15,8 @@ interface ProcessViewState {
   status: StatusFilter;
   user: string | null;
   collapsed: Set<string>;
+  /** App groups the user opted to expand, in "grouped" mode. Collapsed by default. */
+  expandedApps: Set<string>;
   selected: ProcessIdentity | null;
   drawerOpen: boolean;
   setMode: (mode: ProcessMode) => void;
@@ -24,6 +26,7 @@ interface ProcessViewState {
   setUser: (user: string | null) => void;
   toggleCollapsed: (key: string) => void;
   setCollapsedKeys: (keys: string[]) => void;
+  toggleAppExpanded: (key: string) => void;
   select: (identity: ProcessIdentity | null, openDrawer?: boolean) => void;
   closeDrawer: () => void;
 }
@@ -38,6 +41,7 @@ export const useProcessView = create<ProcessViewState>()(
       status: "all",
       user: null,
       collapsed: new Set(),
+      expandedApps: new Set(),
       selected: null,
       drawerOpen: false,
       setMode: (mode) => set({ mode }),
@@ -58,6 +62,13 @@ export const useProcessView = create<ProcessViewState>()(
           return { collapsed };
         }),
       setCollapsedKeys: (keys) => set({ collapsed: new Set(keys) }),
+      toggleAppExpanded: (key) =>
+        set((s) => {
+          const expandedApps = new Set(s.expandedApps);
+          if (expandedApps.has(key)) expandedApps.delete(key);
+          else expandedApps.add(key);
+          return { expandedApps };
+        }),
       select: (selected, openDrawer) => set((s) => ({ selected, drawerOpen: openDrawer ?? s.drawerOpen })),
       closeDrawer: () => set({ drawerOpen: false }),
     }),
