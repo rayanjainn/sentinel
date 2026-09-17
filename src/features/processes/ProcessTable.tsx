@@ -4,6 +4,7 @@ import { memo, useMemo, useRef, type KeyboardEvent } from "react";
 import type { ProcessInfo } from "../../bindings/ProcessInfo";
 import { Button } from "../../components/Button";
 import { openContextMenu } from "../../components/ContextMenu";
+import { InfoTip } from "../../components/InfoTip";
 import { SkeletonRows } from "../../components/Skeleton";
 import { EmptyState, ErrorState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
@@ -166,23 +167,27 @@ function HeaderRow() {
         const active = c.key === sortKey;
         const Arrow = sortDir === "asc" ? ArrowUp : ArrowDown;
         return (
-          <button
+          <div
             key={c.key}
-            type="button"
             role="columnheader"
             aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-            title={c.title}
-            onClick={() => toggleSort(c.key)}
             className={cx(
-              "flex h-full items-center gap-1 px-3 hover:text-fg",
+              "flex h-full items-center gap-1 px-3",
               c.align === "right" ? "justify-end" : "justify-start",
-              active && "text-fg",
             )}
           >
-            {c.align === "right" && active && <Arrow size={10} weight="bold" />}
-            <span className="truncate">{c.label}</span>
-            {c.align === "left" && active && <Arrow size={10} weight="bold" />}
-          </button>
+            {c.glossaryId && c.align === "right" && <InfoTip id={c.glossaryId} />}
+            <button
+              type="button"
+              onClick={() => toggleSort(c.key)}
+              className={cx("flex min-w-0 items-center gap-1 hover:text-fg", active && "text-fg")}
+            >
+              {c.align === "right" && active && <Arrow size={10} weight="bold" />}
+              <span className="truncate">{c.label}</span>
+              {c.align === "left" && active && <Arrow size={10} weight="bold" />}
+            </button>
+            {c.glossaryId && c.align === "left" && <InfoTip id={c.glossaryId} />}
+          </div>
         );
       })}
     </div>

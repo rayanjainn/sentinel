@@ -59,8 +59,16 @@ async function copy(text: string, what: string) {
   }
 }
 
-export function processMenu(pid: number | null, name: string): MenuItem[] {
-  if (pid === null) return [{ label: "Owning process unknown", onSelect: () => undefined, disabled: true }];
+/** `processCount` distinguishes "this row groups several helper processes" (pass the count) from
+ * a genuinely unknown owner (omit it), so the disabled item reads correctly either way. */
+export function processMenu(pid: number | null, name: string, processCount?: number): MenuItem[] {
+  if (pid === null) {
+    const label =
+      processCount && processCount > 1
+        ? `${name} groups ${processCount} processes — open one from the Processes view to act on it`
+        : "Owning process unknown";
+    return [{ label, onSelect: () => undefined, disabled: true }];
+  }
   return [
     { label: `Quit ${name}`, icon: <Power size={14} />, onSelect: () => void quitOwner(pid, false) },
     { label: `Force quit ${name}`, icon: <XCircle size={14} />, danger: true, onSelect: () => void quitOwner(pid, true) },

@@ -18,6 +18,8 @@ const s = (id: string, g: GeoLocation | null, over: Partial<SocketEntry> = {}): 
   state: "established",
   pid: 1,
   processName: "x",
+  appName: null,
+  processStartTime: null,
   remoteHost: null,
   geo: g,
   bytesIn: null,
@@ -25,6 +27,7 @@ const s = (id: string, g: GeoLocation | null, over: Partial<SocketEntry> = {}): 
   rxBps: 10,
   txBps: 5,
   firstSeenMs: 0,
+  explanation: { headline: "", detail: "", service: null, purpose: null, confidence: "unknown", encrypted: false },
   ...over,
 });
 

@@ -6,13 +6,15 @@ import type { SocketEntry } from "../../bindings/SocketEntry";
 import type { TrafficSource } from "../../bindings/TrafficSource";
 import { IconButton } from "../../components/Button";
 import { openContextMenu, openMenuAt } from "../../components/ContextMenu";
+import { InfoTip } from "../../components/InfoTip";
 import { EmptyState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
 import { formatBytes, formatCount, formatRate, pluralize } from "../../lib/format";
 import { formatEndpoint, TCP_STATE_LABEL } from "../../lib/net";
 import { useVirtualRows } from "../../lib/virtual";
 import { hostState, useNetwork, type HostState } from "../../stores/network";
-import { groupByProcess, type ProcessGroup } from "./grouping";
+import { ExplainTip } from "./ExplainTip";
+import { destinationCount, groupByProcess, type ProcessGroup } from "./grouping";
 import { processMenu, socketMenu } from "./socketActions";
 import { useNetworkView } from "./viewState";
 
@@ -78,6 +80,8 @@ const GroupRow = memo(function GroupRow({
 }) {
   const toggle = () => useNetworkView.getState().toggleGroup(group.key);
   const hasTraffic = rate ? group.rxBps + group.txBps > 0 : group.bytesIn + group.bytesOut > 0;
+  const destinations = destinationCount(group.sockets);
+  const menu = () => processMenu(group.pid, group.name, group.pids.length);
   return (
     <div
       role="row"
@@ -85,13 +89,17 @@ const GroupRow = memo(function GroupRow({
       className="absolute left-0 right-0 grid cursor-default items-center border-b border-line bg-ground text-[12px] hover:bg-raised/60"
       style={{ gridTemplateColumns: GRID, height: ROW_HEIGHT, transform: `translateY(${index * ROW_HEIGHT}px)` }}
       onClick={toggle}
-      onContextMenu={(e) => openContextMenu(e, processMenu(group.pid, group.name), `Actions for ${group.name}`)}
+      onContextMenu={(e) => openContextMenu(e, menu(), `Actions for ${group.name}`)}
     >
       <div className="col-span-6 flex min-w-0 items-center gap-2 pl-2.5">
         <CaretRight size={10} weight="bold" className={cx("shrink-0 text-fg-muted transition-transform duration-150", expanded && "rotate-90")} />
         <span className="truncate font-medium text-fg">{group.name}</span>
         {group.pid !== null && <span className="num shrink-0 text-fg-subtle">{group.pid}</span>}
-        <span className="shrink-0 text-fg-muted">{pluralize(group.sockets.length, "connection")}</span>
+        {group.pids.length > 1 && <span className="shrink-0 text-fg-subtle">{pluralize(group.pids.length, "process", "processes")}</span>}
+        <span className="shrink-0 text-fg-muted">
+          {pluralize(group.sockets.length, "connection")}
+          {destinations > 0 && ` to ${pluralize(destinations, "destination")}`}
+        </span>
       </div>
       <div className="px-3 text-right">
         {hasTraffic ? (
@@ -106,7 +114,7 @@ const GroupRow = memo(function GroupRow({
           size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            openMenuAt(e.currentTarget, processMenu(group.pid, group.name), `Actions for ${group.name}`);
+            openMenuAt(e.currentTarget, menu(), `Actions for ${group.name}`);
           }}
         >
           <DotsThree size={14} weight="bold" />
@@ -148,18 +156,21 @@ const SocketRow = memo(function SocketRow({
       }}
     >
       {selected && <span className="absolute inset-y-0 left-0 w-0.5 bg-signal" />}
-      <div className="min-w-0 truncate pl-8 pr-3">
-        {host.state === "resolved" ? (
-          <motion.span key={host.host} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="text-fg" title={host.host}>
-            {host.host}
-          </motion.span>
-        ) : host.state === "pending" ? (
-          <span className="text-fg-subtle">Resolving…</span>
-        ) : (
-          <span className="text-fg-subtle" title="The address has no reverse DNS name">
-            {s.remoteAddr ? "No hostname" : "—"}
-          </span>
-        )}
+      <div className="flex min-w-0 items-center gap-1.5 pl-8 pr-3">
+        <span className="min-w-0 truncate">
+          {host.state === "resolved" ? (
+            <motion.span key={host.host} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="text-fg" title={host.host}>
+              {host.host}
+            </motion.span>
+          ) : host.state === "pending" ? (
+            <span className="text-fg-subtle">Resolving…</span>
+          ) : (
+            <span className="text-fg-subtle" title="The address has no reverse DNS name">
+              {s.remoteAddr ? "No hostname" : "—"}
+            </span>
+          )}
+        </span>
+        <ExplainTip explanation={s.explanation} className="shrink-0" />
       </div>
       <div className="num truncate px-3 text-fg" title={s.remoteAddr ?? undefined}>
         {s.remoteAddr ? formatEndpoint(s.remoteAddr, s.remotePort, s.family) : "—"}
@@ -241,14 +252,30 @@ export function ConnectionsTable({
           className="sticky top-0 z-10 grid items-center border-b border-line bg-ground text-[12px] text-fg-muted"
           style={{ gridTemplateColumns: GRID, height: HEADER_HEIGHT }}
         >
-          <span role="columnheader" className="pl-8 pr-3">Remote host</span>
+          <span role="columnheader" className="flex items-center gap-1.5 pl-8 pr-3">
+            Remote host
+            <InfoTip id="remoteHost" />
+          </span>
           <span role="columnheader" className="px-3">Remote address</span>
-          <span role="columnheader" className="px-3 text-right">Local port</span>
-          <span role="columnheader" className="px-3">Proto</span>
-          <span role="columnheader" className="px-3">State</span>
-          <span role="columnheader" className="px-3">Location</span>
-          <span role="columnheader" className="px-3 text-right" title={header.title}>
+          <span role="columnheader" className="flex items-center justify-end gap-1.5 px-3 text-right">
+            Local port
+            <InfoTip id="listeningPort" />
+          </span>
+          <span role="columnheader" className="flex items-center gap-1.5 px-3">
+            Proto
+            <InfoTip id="protocol" />
+          </span>
+          <span role="columnheader" className="flex items-center gap-1.5 px-3">
+            State
+            <InfoTip id="connectionState" />
+          </span>
+          <span role="columnheader" className="flex items-center gap-1.5 px-3">
+            Location
+            <InfoTip id="geoLocation" />
+          </span>
+          <span role="columnheader" className="flex items-center justify-end gap-1.5 px-3 text-right">
             {header.label}
+            <InfoTip id={rate ? "connectionRate" : "cumulativeBytes"} />
           </span>
           <span />
         </div>

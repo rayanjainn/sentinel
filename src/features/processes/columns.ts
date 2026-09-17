@@ -1,6 +1,7 @@
 // Column definitions, sorting and search for the process table.
 import type { ProcessInfo } from "../../bindings/ProcessInfo";
 import type { ProcessStatus } from "../../bindings/ProcessStatus";
+import type { GlossaryId } from "../../lib/glossary";
 
 export type SortKey =
   | "name"
@@ -26,23 +27,24 @@ export interface Column {
   track: string;
   align: "left" | "right";
   defaultDir: SortDir;
-  title?: string;
+  /** Glossary entry explained by this column's `?`/`i` tooltip. */
+  glossaryId?: GlossaryId;
 }
 
 export const COLUMNS: Column[] = [
   { key: "name", label: "Name", track: "minmax(220px,1fr)", align: "left", defaultDir: "asc" },
-  { key: "pid", label: "PID", track: "64px", align: "right", defaultDir: "asc" },
+  { key: "pid", label: "PID", track: "64px", align: "right", defaultDir: "asc", glossaryId: "pid" },
   { key: "user", label: "User", track: "104px", align: "left", defaultDir: "asc" },
-  { key: "status", label: "Status", track: "96px", align: "left", defaultDir: "asc" },
-  { key: "cpu", label: "CPU", track: "72px", align: "right", defaultDir: "desc", title: "Instant CPU. 100% is one full core." },
-  { key: "cpuAvg", label: "Avg CPU", track: "82px", align: "right", defaultDir: "desc", title: "Rolling average CPU (about 10 samples)" },
-  { key: "memory", label: "Memory", track: "84px", align: "right", defaultDir: "desc", title: "Resident memory (RSS)" },
-  { key: "virtual", label: "Virtual", track: "84px", align: "right", defaultDir: "desc", title: "Virtual memory size" },
-  { key: "threads", label: "Threads", track: "76px", align: "right", defaultDir: "desc" },
-  { key: "fds", label: "Files", track: "62px", align: "right", defaultDir: "desc", title: "Open file descriptors" },
-  { key: "nice", label: "Nice", track: "58px", align: "right", defaultDir: "asc", title: "Scheduling priority: lower runs first" },
-  { key: "started", label: "Started", track: "96px", align: "right", defaultDir: "desc" },
-  { key: "runtime", label: "Running", track: "80px", align: "right", defaultDir: "desc" },
+  { key: "status", label: "Status", track: "96px", align: "left", defaultDir: "asc", glossaryId: "processStatus" },
+  { key: "cpu", label: "CPU", track: "72px", align: "right", defaultDir: "desc", glossaryId: "cpuPercent" },
+  { key: "cpuAvg", label: "Avg CPU", track: "82px", align: "right", defaultDir: "desc", glossaryId: "cpuPercentAvg" },
+  { key: "memory", label: "Memory", track: "84px", align: "right", defaultDir: "desc", glossaryId: "memoryRss" },
+  { key: "virtual", label: "Virtual", track: "84px", align: "right", defaultDir: "desc", glossaryId: "memoryVirtual" },
+  { key: "threads", label: "Threads", track: "76px", align: "right", defaultDir: "desc", glossaryId: "threadCount" },
+  { key: "fds", label: "Files", track: "62px", align: "right", defaultDir: "desc", glossaryId: "fdCount" },
+  { key: "nice", label: "Nice", track: "58px", align: "right", defaultDir: "asc", glossaryId: "nice" },
+  { key: "started", label: "Started", track: "96px", align: "right", defaultDir: "desc", glossaryId: "startTime" },
+  { key: "runtime", label: "Running", track: "80px", align: "right", defaultDir: "desc", glossaryId: "runTime" },
 ];
 
 export const GRID_TEMPLATE = COLUMNS.map((c) => c.track).join(" ");

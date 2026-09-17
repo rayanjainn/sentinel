@@ -17,6 +17,8 @@ const socket = (over: Partial<SocketEntry> = {}): SocketEntry => ({
   state: "established",
   pid: 1,
   processName: "x",
+  appName: null,
+  processStartTime: null,
   remoteHost: null,
   geo: null,
   bytesIn: null,
@@ -24,6 +26,7 @@ const socket = (over: Partial<SocketEntry> = {}): SocketEntry => ({
   rxBps: null,
   txBps: null,
   firstSeenMs: 1_000_000,
+  explanation: { headline: "", detail: "", service: null, purpose: null, confidence: "unknown", encrypted: false },
   ...over,
 });
 

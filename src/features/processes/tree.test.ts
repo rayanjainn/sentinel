@@ -21,6 +21,7 @@ function proc(pid: number, ppid: number | null, name = `p${pid}`, cpu = 0): Proc
     threadCount: 1,
     fdCount: 1,
     nice: 0,
+    summary: { headline: "", appName: null, role: "unknown", category: "unknown", quitSafety: "unknown", confidence: "unknown" },
   };
 }
 

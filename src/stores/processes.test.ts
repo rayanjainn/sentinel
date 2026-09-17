@@ -22,6 +22,7 @@ const base: ProcessInfo = {
   threadCount: 9,
   fdCount: 30,
   nice: 0,
+  summary: { headline: "", appName: null, role: "unknown", category: "unknown", quitSafety: "unknown", confidence: "unknown" },
 };
 
 describe("process reconciliation", () => {

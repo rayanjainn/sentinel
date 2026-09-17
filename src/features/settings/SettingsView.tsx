@@ -6,6 +6,7 @@ import { Segmented } from "../../components/Segmented";
 import { AgentSettingsSection } from "../agent";
 import { useSettings, type SamplingInterval, type ThemePreference } from "../../stores/settings";
 import { PermissionList } from "../permissions/PermissionList";
+import { Glossary } from "./Glossary";
 import { NetworkSettings } from "./NetworkSettings";
 
 export function SettingsSection({ id, title, description, children }: { id?: string; title: string; description?: string; children: ReactNode }) {
@@ -93,6 +94,13 @@ export function SettingsView() {
 
         <SettingsSection title="AI agent">
           <AgentSettingsSection />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Glossary"
+          description="Every term Sentinel explains with a ? or i icon, in one searchable list."
+        >
+          <Glossary />
         </SettingsSection>
       </div>
     </div>
