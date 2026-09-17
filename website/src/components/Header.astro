@@ -1,0 +1,194 @@
+---
+import { href, REPO_URL } from "../lib/site";
+import Icon from "./Icon.astro";
+import Logo from "./Logo.astro";
+
+interface Props {
+  section?: "home" | "docs";
+}
+
+const { section = "home" } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href={href()}>
+      <Logo size={24} />
+      <span>Sentinel</span>
+    </a>
+
+    <nav class="header-nav" aria-label="Primary">
+      <a class="nav-link nav-optional" href={href("#modules")}>Features</a>
+      <a class="nav-link nav-optional" href={href("#safety")}>Safety</a>
+      <a class="nav-link" href={href("docs/")} aria-current={section === "docs" ? "page" : undefined}
+        >Docs</a
+      >
+      <a class="nav-link nav-download" href={href("#download")}>Download</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="icon-button" href={REPO_URL}>
+        <Icon name="github-logo" label="Source code on GitHub" />
+      </a>
+      <button class="icon-button" type="button" data-theme-toggle aria-label="Switch to light theme">
+        <Icon name="sun" class="theme-icon theme-icon-sun" />
+        <Icon name="moon" class="theme-icon theme-icon-moon" />
+      </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  const STORAGE_KEY = "sentinel-theme";
+  const root = document.documentElement;
+  const toggle = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
+
+  function sync() {
+    const next = root.dataset.theme === "light" ? "dark" : "light";
+    toggle?.setAttribute("aria-label", `Switch to ${next} theme`);
+  }
+
+  toggle?.addEventListener("click", () => {
+    const next = root.dataset.theme === "light" ? "dark" : "light";
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Storage can be unavailable (private mode); the choice then lasts for this page view.
+    }
+    sync();
+  });
+
+  sync();
+</script>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--ground) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--header-height);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: auto;
+    padding: 6px 4px 6px 0;
+    border-radius: var(--radius-control);
+    font-size: 1.0625rem;
+    font-weight: 620;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: var(--radius-control);
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    text-decoration: none;
+    transition:
+      color 0.2s var(--ease-out),
+      background-color 0.2s var(--ease-out);
+  }
+
+  .nav-link:hover,
+  .nav-link[aria-current="page"] {
+    color: var(--fg);
+  }
+
+  .nav-link[aria-current="page"] {
+    background: var(--raised);
+  }
+
+  .nav-download {
+    margin-left: 6px;
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+  }
+
+  .nav-download:hover {
+    border-color: color-mix(in srgb, var(--signal) 55%, var(--line-strong));
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+  }
+
+  .icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition:
+      color 0.2s var(--ease-out),
+      background-color 0.2s var(--ease-out);
+  }
+
+  .icon-button:hover {
+    background: var(--raised);
+    color: var(--fg);
+  }
+
+  .icon-button :global(svg) {
+    width: 19px;
+    height: 19px;
+  }
+
+  /* Show the icon for the theme you would switch to. The svg is rendered by Icon.astro, so the
+     class must be matched globally rather than with this component's scope attribute. */
+  :global([data-theme="light"] .theme-icon-sun),
+  :global(:root:not([data-theme="light"]) .theme-icon-moon) {
+    display: none;
+  }
+
+  @media (max-width: 759px) {
+    .nav-optional {
+      display: none;
+    }
+
+    .nav-link {
+      padding: 0 10px;
+    }
+
+    .header-inner {
+      gap: 4px;
+    }
+  }
+
+  @media (max-width: 379px) {
+    .brand span {
+      display: none;
+    }
+  }
+</style>

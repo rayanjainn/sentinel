@@ -1,0 +1,80 @@
+# Deploys the Astro site in website/ to GitHub Pages: https://rayanjainn.github.io/sentinel/
+#
+# Runs on pushes to main that change the site (or the design tokens it imports from the app)
+# and on demand from the Actions tab. It is independent of app releases: the download section
+# asks the GitHub API for the latest release in the visitor's browser, so publishing a release
+# never requires a site rebuild.
+#
+# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
+
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "src/styles/tokens.css"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+# One deployment at a time. Queued runs are not cancelled mid-deploy; GitHub keeps only the
+# newest pending run, so the latest commit always ends up live.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v7
+
+      # The site has its own package.json and lockfile, separate from the desktop app.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: website/package.json
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `site` and `base` in website/astro.config.mjs point at rayanjainn.github.io/sentinel.
+      - name: Build
+        run: pnpm build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,138 @@
+---
+import { href, LATEST_RELEASE_URL, REPO_URL } from "../lib/site";
+import Logo from "./Logo.astro";
+
+const groups = [
+  {
+    title: "Product",
+    links: [
+      { label: "Modules", href: href("#modules") },
+      { label: "Agent safety", href: href("#safety") },
+      { label: "Download", href: href("#download") },
+      { label: "Latest release", href: LATEST_RELEASE_URL },
+    ],
+  },
+  {
+    title: "Docs",
+    links: [
+      { label: "Install", href: href("docs/install/") },
+      { label: "Getting started", href: href("docs/getting-started/") },
+      { label: "How the agent stays safe", href: href("docs/agent-safety/") },
+      { label: "Privacy", href: href("docs/privacy/") },
+    ],
+  },
+  {
+    title: "Project",
+    links: [
+      { label: "Source code", href: REPO_URL },
+      { label: "Report a problem", href: `${REPO_URL}/issues/new` },
+      { label: "Release history", href: `${REPO_URL}/releases` },
+    ],
+  },
+];
+---
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <a class="footer-logo" href={href()}>
+        <Logo size={22} />
+        <span>Sentinel</span>
+      </a>
+      <p>
+        A system monitor for macOS, Windows and Linux with an agent that asks before it acts. Built
+        with Rust and Tauri.
+      </p>
+    </div>
+
+    {
+      groups.map((group) => (
+        <nav class="footer-group" aria-label={group.title}>
+          <h2>{group.title}</h2>
+          <ul>
+            {group.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: clamp(64px, 10vw, 140px);
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  .footer-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+    gap: 40px 32px;
+    padding-block: 48px 56px;
+  }
+
+  .footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: var(--radius-control);
+    font-weight: 620;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+
+  .footer-brand p {
+    max-width: 36ch;
+    margin-top: 14px;
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+  }
+
+  .footer-group h2 {
+    margin-bottom: 12px;
+    color: var(--fg-subtle);
+    font-size: 0.8125rem;
+    font-weight: 550;
+  }
+
+  .footer-group ul {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .footer-group a {
+    display: inline-block;
+    padding-block: 4px;
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    text-decoration: none;
+  }
+
+  .footer-group a:hover {
+    color: var(--fg);
+  }
+
+  @media (max-width: 859px) {
+    .footer-inner {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .footer-brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .footer-inner {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
