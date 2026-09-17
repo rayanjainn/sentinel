@@ -1,5 +1,5 @@
 import { File, Folder, Rows } from "@phosphor-icons/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import type { ExtensionStat } from "../../bindings/ExtensionStat";
 import type { FileKindGroup } from "../../bindings/FileKindGroup";
@@ -9,6 +9,8 @@ import { formatBytes, formatCount, formatPercent } from "../../lib/format";
 import { FILE_KIND_ORDER, FILE_KINDS, fileKindFill } from "../../styles/dataviz";
 import { nodeMenu } from "./storageActions";
 import { effectiveChildren } from "./treemap";
+
+const LIST_PREVIEW = 12;
 
 /** Accessible list twin of the treemap: the focused folder's contents by size. */
 export function FolderContents({
@@ -21,16 +23,17 @@ export function FolderContents({
   onZoom: (node: TreeNode) => void;
 }) {
   const children = useMemo(() => (node ? (effectiveChildren(node, hidden) ?? []) : []), [node, hidden]);
+  const [showAll, setShowAll] = useState(false);
   const total = children.reduce((s, c) => s + c.sizeBytes, 0);
   if (!node) return null;
   return (
-    <section aria-label={`Contents of ${node.name}`} className="flex min-h-0 flex-col">
+    <section aria-label={`Contents of ${node.name}`} className="flex shrink-0 flex-col">
       <div className="flex items-baseline justify-between px-4 pb-2">
         <h3 className="text-[13px] font-medium text-fg">Largest items here</h3>
         <span className="num text-[12px] text-fg-muted">{formatBytes(node.sizeBytes, { base: 1000 })}</span>
       </div>
-      <ul className="min-h-0 flex-1 overflow-y-auto px-2">
-        {children.slice(0, 40).map((c) => {
+      <ul className="px-2">
+        {children.slice(0, showAll ? 60 : LIST_PREVIEW).map((c) => {
           const share = total > 0 ? c.sizeBytes / total : 0;
           const zoomable = c.kind === "directory" && c.hasChildren;
           const Icon = c.kind === "directory" ? Folder : c.kind === "smallFiles" || c.kind === "remainder" ? Rows : File;
@@ -60,6 +63,11 @@ export function FolderContents({
           );
         })}
       </ul>
+      {children.length > LIST_PREVIEW && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="mx-4 mt-1 self-start text-[12px] text-fg-muted hover:text-fg">
+          {showAll ? "Show fewer" : `Show ${Math.min(60, children.length) - LIST_PREVIEW} more`}
+        </button>
+      )}
     </section>
   );
 }
@@ -93,29 +101,38 @@ export function ByType({ stats }: { stats: ExtensionStat[] }) {
   return (
     <section aria-label="Space by file type" className="flex flex-col gap-2 px-4">
       <h3 className="text-[13px] font-medium text-fg">By type</h3>
-      <table className="w-full text-[12px]">
+      <table className="w-full table-fixed text-[12px]">
+        <colgroup>
+          <col className="w-5" />
+          <col />
+          <col className="w-14" />
+          <col className="w-[68px]" />
+          <col className="w-10" />
+        </colgroup>
         <tbody>
           {totals.map((t) => (
             <tr key={t.kind} className="align-middle" title={t.extensions.slice(0, 6).map((e) => `.${e.extension ?? "(none)"} ${formatBytes(e.bytes, { base: 1000 })}`).join("\n")}>
-              <td className="w-3 py-1 pr-2">
+              <td className="py-1 pr-2">
                 <span className="block size-2.5 rounded-[2px]" style={{ background: fileKindFill(t.kind) }} />
               </td>
-              <td className="py-1 pr-2 text-fg">
-                {FILE_KINDS[t.kind].label}
-                <span className="ml-1.5 text-fg-subtle">
-                  {t.extensions
-                    .slice(0, 3)
-                    .map((e) => (e.extension ? `.${e.extension}` : "no extension"))
-                    .join(" ")}
-                </span>
+              <td className="py-1 pr-2">
+                <div className="truncate text-fg">
+                  {FILE_KINDS[t.kind].label}
+                  <span className="ml-1.5 text-fg-subtle">
+                    {t.extensions
+                      .slice(0, 3)
+                      .map((e) => (e.extension ? `.${e.extension}` : "none"))
+                      .join(" ")}
+                  </span>
+                </div>
               </td>
-              <td className="w-16 py-1 pr-2">
+              <td className="py-1 pr-2">
                 <div className="relative h-[3px] overflow-hidden rounded-full bg-[var(--viz-track)]">
                   <div className="absolute inset-0 origin-left rounded-full bg-fg-subtle" style={{ transform: `scaleX(${max ? t.bytes / max : 0})` }} />
                 </div>
               </td>
-              <td className="num w-16 py-1 text-right text-fg">{formatBytes(t.bytes, { base: 1000 })}</td>
-              <td className="num w-12 py-1 text-right text-fg-subtle">{formatPercent(all ? (t.bytes / all) * 100 : 0, 0)}</td>
+              <td className="num py-1 text-right text-fg">{formatBytes(t.bytes, { base: 1000 })}</td>
+              <td className="num py-1 text-right text-fg-subtle">{formatPercent(all ? (t.bytes / all) * 100 : 0, 0)}</td>
             </tr>
           ))}
         </tbody>
