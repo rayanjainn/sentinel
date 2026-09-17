@@ -1,4 +1,5 @@
 import { Fan, Thermometer } from "@phosphor-icons/react";
+import { useState } from "react";
 
 import type { LoadKind } from "../../bindings/LoadKind";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
@@ -67,9 +68,12 @@ export function LoadPanel() {
   );
 }
 
+const SENSOR_PREVIEW = 6;
+
 export function ThermalPanel() {
   const thermal = useResources((s) => s.latest?.thermal ?? null);
   const hasSample = useResources((s) => s.latest !== null);
+  const [showAll, setShowAll] = useState(false);
   if (!hasSample) return null;
   if (!thermal || (thermal.temperatures.length === 0 && thermal.fans.length === 0)) {
     return (
@@ -81,11 +85,22 @@ export function ThermalPanel() {
       </section>
     );
   }
+  // Hottest first; machines can expose dozens of sensors, so only the top few show by default.
+  const sorted = [...thermal.temperatures].sort((a, b) => b.celsius - a.celsius);
+  const temperatures = showAll ? sorted : sorted.slice(0, SENSOR_PREVIEW);
+  const hidden = sorted.length - temperatures.length;
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[13px] font-medium text-fg">Temperature and fans</h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[13px] font-medium text-fg">{thermal.fans.length > 0 ? "Temperature and fans" : "Temperature"}</h2>
+        {sorted.length > 0 && (
+          <span className="text-[12px] text-fg-muted">
+            {formatCount(sorted.length)} {sorted.length === 1 ? "sensor" : "sensors"}
+          </span>
+        )}
+      </div>
       <ul className="flex flex-col gap-2">
-        {thermal.temperatures.map((t) => {
+        {temperatures.map((t) => {
           const limit = t.criticalCelsius ?? 105;
           const ratio = Math.min(1, Math.max(0, t.celsius / limit));
           const hot = t.criticalCelsius !== null && t.celsius >= t.criticalCelsius * 0.9;
@@ -123,6 +138,11 @@ export function ThermalPanel() {
           </li>
         ))}
       </ul>
+      {(hidden > 0 || showAll) && sorted.length > SENSOR_PREVIEW && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="self-start text-[12px] text-fg-muted hover:text-fg">
+          {showAll ? "Show fewer sensors" : `Show all ${formatCount(sorted.length)} sensors`}
+        </button>
+      )}
     </section>
   );
 }
