@@ -11,6 +11,8 @@
 //! - The flow is identical for every provider.
 
 pub mod backend;
+pub mod conversation;
+pub mod engine;
 pub mod events;
 pub mod plan;
 pub mod prompt;
