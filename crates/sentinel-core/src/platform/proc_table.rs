@@ -158,6 +158,9 @@ impl<E: ProcessExtras> ProcTable<E> {
             thread_count: extra.thread_count,
             fd_count: extra.fd_count,
             nice: extra.nice,
+            // Filled in by the runtime's enrichment pass once the full process table (needed for
+            // parent lookups) is available; platform code has no business classifying processes.
+            summary: crate::model::ProcessSummary::default(),
         })
     }
 }

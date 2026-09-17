@@ -146,6 +146,7 @@ mod tests {
             thread_count: None,
             fd_count: None,
             nice: None,
+            summary: crate::model::ProcessSummary::default(),
         }
     }
 

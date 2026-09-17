@@ -15,13 +15,26 @@ use std::time::Instant;
 
 use crate::error::CoreResult;
 use crate::model::{
-    AddrScope, NetworkSnapshot, Pid, RawSocket, SocketEntry, TrafficSource, TransportProtocol,
+    AddrScope, NetworkSnapshot, Pid, ProcessRole, RawSocket, SocketEntry, TimestampSecs,
+    TrafficSource, TransportProtocol,
 };
 use crate::provider::NetworkProvider;
+use crate::service::explain::{ConnectionFacts, explain_connection};
 use crate::util::{RateCounter, now_ms};
 
 use self::dns::ReverseDns;
 use self::geo::GeoDb;
+
+/// Owner name, start time and role of the process behind a socket, as much as the caller could
+/// resolve at sample time. `start_time`/`role` are `None` when only a name-only fallback scan ran
+/// (the process snapshot stream was not subscribed); callers must not treat that as "not a
+/// browser" — it means the role is simply unknown.
+#[derive(Debug, Clone)]
+pub struct ProcessOwner {
+    pub name: String,
+    pub start_time: Option<TimestampSecs>,
+    pub role: Option<ProcessRole>,
+}
 
 type ConnKey = (TransportProtocol, IpAddr, u16, Option<IpAddr>, Option<u16>);
 
@@ -92,10 +105,10 @@ impl NetworkMonitor {
         self.provider.sockets()
     }
 
-    /// `names` maps the owning PIDs present in this sample to process names.
+    /// `owners` maps the owning PIDs present in this sample to what is known about them.
     pub fn sample(
         &mut self,
-        names: &mut dyn FnMut(&[Pid]) -> HashMap<Pid, String>,
+        owners: &mut dyn FnMut(&[Pid]) -> HashMap<Pid, ProcessOwner>,
     ) -> CoreResult<NetworkSnapshot> {
         let now = Instant::now();
         let ts_ms = now_ms();
@@ -140,7 +153,7 @@ impl NetworkMonitor {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
-        let names = names(&pids);
+        let owners = owners(&pids);
 
         let mut seen_ids: HashMap<String, u32> = HashMap::new();
         let mut sockets = Vec::with_capacity(raw.len());
@@ -189,6 +202,17 @@ impl NetworkMonitor {
                 }
                 None => (None, None, None, None),
             };
+            let owner = socket.pid.and_then(|pid| owners.get(&pid));
+            let remote_host_str = remote_host.as_deref();
+            let explanation = explain_connection(&ConnectionFacts {
+                protocol: socket.protocol,
+                remote_addr: socket.remote_addr,
+                remote_port: socket.remote_port,
+                remote_host: remote_host_str,
+                remote_scope,
+                local_port: socket.local_port,
+                owner_role: owner.and_then(|o| o.role),
+            });
             sockets.push(SocketEntry {
                 id,
                 protocol: socket.protocol,
@@ -200,7 +224,8 @@ impl NetworkMonitor {
                 remote_scope,
                 state: socket.state,
                 pid: socket.pid,
-                process_name: socket.pid.and_then(|pid| names.get(&pid).cloned()),
+                process_name: owner.map(|o| o.name.clone()),
+                process_start_time: owner.and_then(|o| o.start_time),
                 remote_host,
                 geo,
                 bytes_in,
@@ -208,6 +233,7 @@ impl NetworkMonitor {
                 rx_bps,
                 tx_bps,
                 first_seen_ms: tracked.first_seen_ms,
+                explanation,
             });
         }
         self.tracked.retain(|_, t| t.seen_at == now);
@@ -300,12 +326,21 @@ mod tests {
             )),
             Arc::new(GeoDb::open(dir.path())),
         );
-        let mut names = |pids: &[Pid]| {
+        let mut owners = |pids: &[Pid]| {
             pids.iter()
-                .map(|p| (*p, format!("proc{p}")))
+                .map(|p| {
+                    (
+                        *p,
+                        ProcessOwner {
+                            name: format!("proc{p}"),
+                            start_time: Some(1_700_000_000),
+                            role: None,
+                        },
+                    )
+                })
                 .collect::<HashMap<_, _>>()
         };
-        let first = monitor.sample(&mut names).unwrap();
+        let first = monitor.sample(&mut owners).unwrap();
         assert_eq!(first.sockets.len(), 2, "unbound UDP socket filtered");
         assert_eq!(first.traffic_source, TrafficSource::PerConnection);
         let conn = first
@@ -315,14 +350,16 @@ mod tests {
             .unwrap();
         assert_eq!(conn.id, "tcp|192.168.1.2:50000|127.0.0.1:443|42");
         assert_eq!(conn.process_name.as_deref(), Some("proc42"));
+        assert_eq!(conn.process_start_time, Some(1_700_000_000));
         assert_eq!(conn.remote_scope, Some(AddrScope::Loopback));
         assert_eq!(conn.bytes_in, Some(1000));
+        assert!(!conn.explanation.headline.is_empty());
         let listener = first.sockets.iter().find(|s| s.local_port == 8080).unwrap();
         assert_eq!(listener.remote_scope, None);
         assert_eq!(listener.bytes_in, None);
 
         std::thread::sleep(std::time::Duration::from_millis(20));
-        let second = monitor.sample(&mut names).unwrap();
+        let second = monitor.sample(&mut owners).unwrap();
         let conn2 = second
             .sockets
             .iter()

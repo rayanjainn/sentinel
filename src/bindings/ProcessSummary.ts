@@ -8,6 +8,10 @@ import type { QuitSafety } from "./QuitSafety";
  * Compact explanation carried by every row of the 1 Hz process snapshot: enough for the table's
  * plain subtitle, app grouping and safety hint. The full [`ProcessExplanation`] (with detail,
  * quit note and evidence) comes with `ProcessDetail`, on demand.
+ *
+ * The default is a placeholder ("not analyzed yet", `Confidence::Unknown`) used for a moment
+ * before the first enrichment pass runs; the UI never renders it because `confidence: unknown`
+ * with an empty headline is filtered the same as a missing summary.
  */
 export type ProcessSummary = { 
 /**

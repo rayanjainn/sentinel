@@ -4,7 +4,7 @@
 use super::{Draft, catalog, chromium, interpreter};
 use crate::model::{
     Confidence, Pid, Platform, ProcessCategory, ProcessExplanation, ProcessInfo, ProcessRole,
-    QuitSafety,
+    ProcessSummary, QuitSafety,
 };
 
 /// Everything the classifier is allowed to look at. No syscalls, no network, no file reads.
@@ -69,6 +69,28 @@ pub fn explain_info(
     platform: Platform,
 ) -> ProcessExplanation {
     explain_process(&facts_from(info, parent, platform))
+}
+
+/// Cheap path for the 1 Hz snapshot: runs the same classifier but skips building `detail`,
+/// `quit_note` and `evidence`, which the table and app grouping never read.
+pub fn summary_info(
+    info: &ProcessInfo,
+    parent: Option<&ProcessInfo>,
+    platform: Platform,
+) -> ProcessSummary {
+    summary(&facts_from(info, parent, platform))
+}
+
+pub fn summary(facts: &ProcessFacts<'_>) -> ProcessSummary {
+    let draft = classify(facts);
+    ProcessSummary {
+        headline: draft.headline,
+        app_name: draft.app_name,
+        role: draft.role,
+        category: draft.category,
+        quit_safety: draft.quit_safety,
+        confidence: draft.confidence,
+    }
 }
 
 pub fn explain_process(facts: &ProcessFacts<'_>) -> ProcessExplanation {

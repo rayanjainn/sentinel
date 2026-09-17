@@ -20,6 +20,7 @@ mod tests;
 pub use connection::{ConnectionFacts, explain_connection};
 pub use process::{
     ParentFacts, ProcessFacts, explain_info, explain_process, facts_from, host_platform,
+    summary_info,
 };
 
 use crate::model::{Confidence, ProcessCategory, ProcessRole, QuitSafety};

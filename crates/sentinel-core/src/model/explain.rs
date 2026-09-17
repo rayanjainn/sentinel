@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// What a process does inside its application or the system.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ProcessRole {
@@ -42,11 +42,12 @@ pub enum ProcessRole {
     /// An interpreter (node, python, java, …) running a script or program.
     /// The script or entry point is named in the headline and the evidence.
     Interpreter,
+    #[default]
     Unknown,
 }
 
 /// Which family a process belongs to, for grouping and filtering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ProcessCategory {
@@ -58,12 +59,13 @@ pub enum ProcessCategory {
     Kernel,
     Developer,
     Security,
+    #[default]
     Unknown,
 }
 
 /// What happens if this process is stopped. Drives the "Is it safe to quit?" copy in the table,
 /// the detail drawer and the confirm dialog.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum QuitSafety {
@@ -78,11 +80,12 @@ pub enum QuitSafety {
     /// Runs in the background with no window; consequences are limited but specific.
     Background,
     /// Not recognised — the evidence is shown instead of a guess.
+    #[default]
     Unknown,
 }
 
 /// How much Sentinel actually knows about an explanation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum Confidence {
@@ -91,13 +94,18 @@ pub enum Confidence {
     /// Inferred from a pattern (a path, a flag, a hostname). Reads as "looks like …".
     Likely,
     /// Not recognised. Says so, and shows the raw evidence.
+    #[default]
     Unknown,
 }
 
 /// Compact explanation carried by every row of the 1 Hz process snapshot: enough for the table's
 /// plain subtitle, app grouping and safety hint. The full [`ProcessExplanation`] (with detail,
 /// quit note and evidence) comes with `ProcessDetail`, on demand.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+///
+/// The default is a placeholder ("not analyzed yet", `Confidence::Unknown`) used for a moment
+/// before the first enrichment pass runs; the UI never renders it because `confidence: unknown`
+/// with an empty headline is filtered the same as a missing summary.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ProcessSummary {
@@ -112,7 +120,7 @@ pub struct ProcessSummary {
 }
 
 /// Full explanation of one process.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ProcessExplanation {

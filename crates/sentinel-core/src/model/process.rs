@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::{Pid, SocketEntry, TimestampMs, TimestampSecs};
+use super::{Pid, ProcessExplanation, ProcessSummary, SocketEntry, TimestampMs, TimestampSecs};
 use crate::error::ErrorPayload;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -52,6 +52,10 @@ pub struct ProcessInfo {
     pub fd_count: Option<u32>,
     /// Unix nice value (-20..=19). On Windows the priority class is mapped onto this scale.
     pub nice: Option<i32>,
+    /// Plain-language explanation of what this process is, for the table subtitle and app
+    /// grouping. `Default` (empty headline, `Confidence::Unknown`) for a moment before the
+    /// runtime's enrichment pass fills it in.
+    pub summary: ProcessSummary,
 }
 
 impl ProcessInfo {
@@ -115,6 +119,10 @@ pub struct ProcessDetail {
     pub connections: Vec<SocketEntry>,
     /// Whether graceful termination will close a window rather than send a signal.
     pub has_window: bool,
+    /// Full plain-language explanation, including the "Is it safe to quit?" note and the
+    /// evidence it was built from. `info.summary` carries the same headline/role/safety, computed
+    /// once here.
+    pub explanation: ProcessExplanation,
 }
 
 /// How a graceful terminate was delivered, reported back so the UI can say exactly what happened.

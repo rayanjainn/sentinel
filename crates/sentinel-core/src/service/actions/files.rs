@@ -237,6 +237,7 @@ fn preview_targets(targets: &[Target]) -> Vec<PreviewTarget> {
             }),
             size_bytes: t.size.map(|s| s.bytes),
             problem: t.problem.clone(),
+            safety_note: None,
         })
         .collect()
 }
@@ -552,12 +553,14 @@ pub(super) fn execute_trash(
                 moved.push(raw.clone());
                 items.push(ItemOutcome {
                     label,
+                    path: Some(raw.clone()),
                     success: true,
                     error: None,
                 });
             }
             Err(err) => items.push(ItemOutcome {
                 label,
+                path: Some(raw.clone()),
                 success: false,
                 error: Some(err.into()),
             }),
@@ -657,12 +660,14 @@ pub(super) fn execute_move(
                 moved.push(raw.clone());
                 items.push(ItemOutcome {
                     label,
+                    path: Some(raw.clone()),
                     success: true,
                     error: None,
                 });
             }
             Err(err) => items.push(ItemOutcome {
                 label,
+                path: Some(raw.clone()),
                 success: false,
                 error: Some(err.into()),
             }),
