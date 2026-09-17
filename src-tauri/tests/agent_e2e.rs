@@ -171,7 +171,7 @@ async fn agent_reads_live_state_and_runs_only_approved_actions() {
         "There is a leftover test job: the `sleep` process with PID {pid}. Check it with get_process_details, then call terminate_process for PID {pid}."
     );
     let mut plan = None;
-    for attempt in 0..3 {
+    for attempt in 0..2 {
         engine
             .send_message(&conversation, &request, CancellationToken::new())
             .await
