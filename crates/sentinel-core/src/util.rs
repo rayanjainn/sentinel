@@ -129,6 +129,58 @@ impl RateCounter {
     }
 }
 
+/// Unix-style exponentially damped load average (1, 5 and 15 minute constants), fed with an
+/// instantaneous run-queue estimate on platforms without a kernel load average.
+#[derive(Debug, Default, Clone)]
+pub struct DampedLoad {
+    state: Option<(std::time::Instant, f64, f64, f64)>,
+}
+
+impl DampedLoad {
+    pub fn update(&mut self, now: std::time::Instant, instant: f64) -> (f64, f64, f64) {
+        let (one, five, fifteen) = match self.state {
+            None => (instant, instant, instant),
+            Some((at, one, five, fifteen)) => {
+                let dt = now.saturating_duration_since(at).as_secs_f64();
+                let damp = |value: f64, period: f64| {
+                    let factor = (-dt / period).exp();
+                    value * factor + instant * (1.0 - factor)
+                };
+                (damp(one, 60.0), damp(five, 300.0), damp(fifteen, 900.0))
+            }
+        };
+        self.state = Some((now, one, five, fifteen));
+        (one, five, fifteen)
+    }
+}
+
+/// UTC (year, month 1..=12) for a Unix timestamp (Howard Hinnant's civil-from-days).
+pub fn utc_year_month(secs: u64) -> (i64, u32) {
+    let days = (secs / 86_400) as i64;
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    (year, month)
+}
+
+#[cfg(test)]
+mod date_tests {
+    use super::utc_year_month;
+
+    #[test]
+    fn converts_timestamps_to_year_month() {
+        assert_eq!(utc_year_month(0), (1970, 1));
+        assert_eq!(utc_year_month(951_782_400), (2000, 2));
+        assert_eq!(utc_year_month(1_789_430_400), (2026, 9));
+        assert_eq!(utc_year_month(1_767_225_599), (2025, 12));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,31 +212,6 @@ mod tests {
         assert!(guard_process_target(1).is_err());
         assert!(guard_process_target(std::process::id()).is_err());
         assert!(guard_process_target(u32::MAX - 1).is_ok());
-    }
-}
-
-/// Unix-style exponentially damped load average (1, 5 and 15 minute constants), fed with an
-/// instantaneous run-queue estimate on platforms without a kernel load average.
-#[derive(Debug, Default, Clone)]
-pub struct DampedLoad {
-    state: Option<(std::time::Instant, f64, f64, f64)>,
-}
-
-impl DampedLoad {
-    pub fn update(&mut self, now: std::time::Instant, instant: f64) -> (f64, f64, f64) {
-        let (one, five, fifteen) = match self.state {
-            None => (instant, instant, instant),
-            Some((at, one, five, fifteen)) => {
-                let dt = now.saturating_duration_since(at).as_secs_f64();
-                let damp = |value: f64, period: f64| {
-                    let factor = (-dt / period).exp();
-                    value * factor + instant * (1.0 - factor)
-                };
-                (damp(one, 60.0), damp(five, 300.0), damp(fifteen, 900.0))
-            }
-        };
-        self.state = Some((now, one, five, fifteen));
-        (one, five, fifteen)
     }
 }
 

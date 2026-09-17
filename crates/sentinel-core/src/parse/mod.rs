@@ -2,5 +2,8 @@
 //! OS calls so they are unit-tested on every host.
 
 pub mod netsh;
+pub mod pcblist;
 pub mod procfs;
+pub mod sockets;
 pub mod uri;
+pub mod zonetab;
