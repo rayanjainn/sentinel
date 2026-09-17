@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react";
 import { IconButton } from "../../components/Button";
 import { openContextMenu, openMenuAt } from "../../components/ContextMenu";
 import { Checkbox } from "../../components/Field";
+import { InfoTip } from "../../components/InfoTip";
 import { EmptyState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
 import { formatBytes, formatDateTime, formatRelativeSecs } from "../../lib/format";
@@ -54,7 +55,10 @@ export function LargestFiles() {
               />
             </span>
             <span>File</span>
-            <span className="px-3 text-right">Size</span>
+            <span className="flex items-center justify-end gap-1.5 px-3 text-right">
+              Size
+              <InfoTip id="apparentSize" />
+            </span>
             <span className="px-3">Modified</span>
             <span />
           </div>

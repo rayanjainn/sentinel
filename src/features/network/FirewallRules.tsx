@@ -5,6 +5,7 @@ import type { FirewallBackend } from "../../bindings/FirewallBackend";
 import type { FirewallRule } from "../../bindings/FirewallRule";
 import type { TrafficDirection } from "../../bindings/TrafficDirection";
 import { Button } from "../../components/Button";
+import { InfoTip } from "../../components/InfoTip";
 import { Skeleton } from "../../components/Skeleton";
 import { EmptyState, ErrorState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
@@ -87,7 +88,10 @@ export function FirewallRules() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-[980px] flex-col gap-5 px-6 py-5">
         <div className="flex flex-col gap-1.5">
-          <h2 className="text-[15px] font-semibold tracking-display text-fg">Rules added by Sentinel</h2>
+          <h2 className="flex items-center gap-1.5 text-[15px] font-semibold tracking-display text-fg">
+            Rules added by Sentinel
+            <InfoTip id="firewallRuleGlossary" />
+          </h2>
           <p className="max-w-[70ch] text-fg-muted">
             Only rules created here are shown. Your other firewall rules are left alone. Rules that are not active
             were cleared by a restart and can be removed or added again.

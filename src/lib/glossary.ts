@@ -26,6 +26,14 @@ const coresPhrase = (cores: number | null) =>
   cores ? `this Mac has ${cores} logical cores, so the number can go up to ${cores * 100}%` : "one core is fully busy at 100%";
 
 const ENTRIES = {
+  // CPU & memory (machine-wide) ---------------------------------------------------------------------
+  cpuTotal: {
+    term: "CPU",
+    definition: (ctx) =>
+      ctx.cores
+        ? `Every logical core on this Mac added together and averaged. 100% means all ${ctx.cores} cores are fully busy.`
+        : "Every logical core on this machine added together and averaged. 100% means every core is fully busy.",
+  },
   // Processes ------------------------------------------------------------------------------------
   cpuPercent: {
     term: "CPU %",
@@ -149,6 +157,12 @@ const ENTRIES = {
       ctx.cores
         ? `Work queued for the CPU, averaged over the last 1, 5 and 15 minutes. On this ${ctx.cores}-core Mac, a load of ${ctx.cores.toFixed(1)} means the CPU is exactly fully busy; higher means work is waiting its turn.`
         : "Work queued for the CPU, averaged over the last 1, 5 and 15 minutes. A load equal to the number of logical cores means the CPU is exactly fully busy.",
+  },
+  appMemory: {
+    term: "App",
+    definition:
+      "Regular memory used by apps and their normal work, separate from the memory the kernel has pinned (wired) or compressed. This is usually the segment that grows when you open more apps.",
+    unit: "Bytes, shown as MB/GB.",
   },
   swap: {
     term: "Swap",

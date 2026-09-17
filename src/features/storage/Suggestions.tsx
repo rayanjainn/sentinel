@@ -4,11 +4,12 @@ import { useMemo } from "react";
 import type { CleanupSuggestion } from "../../bindings/CleanupSuggestion";
 import { openContextMenu } from "../../components/ContextMenu";
 import { Checkbox } from "../../components/Field";
+import { InfoTip } from "../../components/InfoTip";
 import { EmptyState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
 import { formatBytes, formatCount, formatRelativeSecs } from "../../lib/format";
 import { useStorage } from "../../stores/storage";
-import { CATEGORY_LABEL, CATEGORY_ORDER } from "./categories";
+import { CATEGORY_GLOSSARY, CATEGORY_LABEL, CATEGORY_ORDER } from "./categories";
 import { SelectionBar } from "./SelectionBar";
 import { summarize, toggle } from "./selection";
 import { moveItems, pathMenu, trashItems } from "./storageActions";
@@ -79,7 +80,10 @@ export function Suggestions() {
                   ) : (
                     <span className="w-3.5" />
                   )}
-                  <h3 className="flex-1 text-[15px] font-semibold tracking-display text-fg">{CATEGORY_LABEL[g.category]}</h3>
+                  <h3 className="flex flex-1 items-center gap-1.5 text-[15px] font-semibold tracking-display text-fg">
+                    {CATEGORY_LABEL[g.category]}
+                    <InfoTip id={CATEGORY_GLOSSARY[g.category]} />
+                  </h3>
                   <span className="num text-fg">{formatBytes(g.bytes, { base: 1000 })}</span>
                 </div>
                 <ul className="flex flex-col divide-y divide-line">

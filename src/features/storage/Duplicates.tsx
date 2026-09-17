@@ -7,6 +7,7 @@ import type { FileEntry } from "../../bindings/FileEntry";
 import { Button } from "../../components/Button";
 import { openContextMenu } from "../../components/ContextMenu";
 import { Checkbox, Select } from "../../components/Field";
+import { InfoTip } from "../../components/InfoTip";
 import { Skeleton } from "../../components/Skeleton";
 import { EmptyState, ErrorState, StatePanel } from "../../components/States";
 import { cx } from "../../lib/cx";
@@ -171,7 +172,10 @@ export function Duplicates() {
                     const g = row.group;
                     return (
                       <div key={`g-${g.hash}`} className="absolute left-0 right-0 flex items-center gap-4 border-b border-line bg-ground px-5 text-[12px]" style={{ height: ROW, transform: `translateY(${top}px)` }}>
-                        <span className="font-medium text-fg">{pluralize(g.files.length, "copy", "copies")}</span>
+                        <span className="flex items-center gap-1.5 font-medium text-fg">
+                          {pluralize(g.files.length, "copy", "copies")}
+                          <InfoTip id="duplicateGroup" />
+                        </span>
                         <span className="num text-fg-muted">{formatBytes(g.sizeBytes, { base: 1000 })} each</span>
                         <span className="flex-1" />
                         {!keepsOneCopy(g, selected) && <span className="text-warn">Every copy selected</span>}

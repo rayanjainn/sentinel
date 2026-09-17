@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import type { ResourceSample } from "../../bindings/ResourceSample";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { LiveChart } from "../../components/charts/LiveChart";
+import { InfoTip } from "../../components/InfoTip";
 import { Skeleton } from "../../components/Skeleton";
 import { ErrorState } from "../../components/States";
 import { formatBytes, formatPercent } from "../../lib/format";
+import type { GlossaryId } from "../../lib/glossary";
 import { useProcesses, useProcessFeed } from "../../stores/processes";
 import { useResources } from "../../stores/resources";
 import { useSettings } from "../../stores/settings";
@@ -15,6 +17,14 @@ import { availableSegments, memorySegments, type MemorySegmentKey } from "./memo
 import { resourceSource, sampleTime } from "./sources";
 
 const TOP_COUNT = 8;
+
+const SEGMENT_GLOSSARY: Record<MemorySegmentKey, GlossaryId | undefined> = {
+  app: "appMemory",
+  wired: "wiredMemory",
+  compressed: "compressedMemory",
+  cached: "cachedMemory",
+  free: undefined,
+};
 
 export function MemoryChart({ windowMs }: { windowMs: number }) {
   const latest = useResources((s) => s.latest);
@@ -65,13 +75,17 @@ export function MemoryChart({ windowMs }: { windowMs: number }) {
         ariaLabel="Memory composition over time"
       />
       <ul aria-label="Memory legend" className="flex flex-wrap gap-x-5 gap-y-1.5">
-        {series.map((s) => (
-          <li key={s.key} className="flex items-center gap-1.5 text-[12px]">
-            <span className="size-2.5 rounded-[2px]" style={{ background: s.color, opacity: s.key === "free" ? 1 : 0.85, boxShadow: s.key === "free" ? "inset 0 0 0 1px var(--line-strong)" : undefined }} />
-            <span className="text-fg-muted">{s.label}</span>
-            <span className="num text-fg">{formatBytes(segments[s.key as MemorySegmentKey])}</span>
-          </li>
-        ))}
+        {series.map((s) => {
+          const glossaryId = SEGMENT_GLOSSARY[s.key as MemorySegmentKey];
+          return (
+            <li key={s.key} className="flex items-center gap-1.5 text-[12px]">
+              <span className="size-2.5 rounded-[2px]" style={{ background: s.color, opacity: s.key === "free" ? 1 : 0.85, boxShadow: s.key === "free" ? "inset 0 0 0 1px var(--line-strong)" : undefined }} />
+              <span className="text-fg-muted">{s.label}</span>
+              {glossaryId && <InfoTip id={glossaryId} />}
+              <span className="num text-fg">{formatBytes(segments[s.key as MemorySegmentKey])}</span>
+            </li>
+          );
+        })}
       </ul>
       <SwapMeter used={m.swapUsed} total={m.swapTotal} />
     </div>
@@ -85,7 +99,10 @@ function SwapMeter({ used, total }: { used: number; total: number }) {
   const ratio = Math.min(1, used / total);
   return (
     <div className="flex items-center gap-3 border-t border-line pt-3 text-[12px]">
-      <span className="w-12 text-fg-muted">Swap</span>
+      <span className="flex w-12 items-center gap-1 text-fg-muted">
+        Swap
+        <InfoTip id="swap" />
+      </span>
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--viz-track)]">
         <div
           className="absolute inset-0 origin-left rounded-full bg-[var(--viz-2)] transition-transform duration-300 ease-out motion-reduce:transition-none"

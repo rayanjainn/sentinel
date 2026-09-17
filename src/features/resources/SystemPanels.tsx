@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import type { LoadKind } from "../../bindings/LoadKind";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
+import { InfoTip } from "../../components/InfoTip";
 import { cx } from "../../lib/cx";
 import { formatCount } from "../../lib/format";
 import { useResources } from "../../stores/resources";
@@ -38,7 +39,10 @@ export function LoadPanel() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <h2 className="text-[13px] font-medium text-fg">{copy.title}</h2>
+        <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
+          {copy.title}
+          <InfoTip id="loadAverage" />
+        </h2>
         <p className="text-[12px] text-fg-muted">{copy.detail}</p>
       </div>
       <dl className="grid grid-cols-3 gap-4">
@@ -92,7 +96,11 @@ export function ThermalPanel() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-medium text-fg">{thermal.fans.length > 0 ? "Temperature and fans" : "Temperature"}</h2>
+        <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
+          {thermal.fans.length > 0 ? "Temperature and fans" : "Temperature"}
+          <InfoTip id="temperature" />
+          {thermal.fans.length > 0 && <InfoTip id="fanSpeed" />}
+        </h2>
         {sorted.length > 0 && (
           <span className="text-[12px] text-fg-muted">
             {formatCount(sorted.length)} {sorted.length === 1 ? "sensor" : "sensors"}
