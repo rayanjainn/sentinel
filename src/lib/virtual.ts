@@ -45,13 +45,19 @@ export function useVirtualRows(
   { overscan = 10, headerOffset = 0 }: { overscan?: number; headerOffset?: number } = {},
 ) {
   const [metrics, setMetrics] = useState({ scrollTop: 0, height: 0 });
-  const frame = useRef(0);
+  const attached = useRef<{ el: HTMLElement; detach: () => void } | null>(null);
 
+  // Runs after every render so a scroll container that mounts later (after a skeleton or empty
+  // state) is still observed; attaching is skipped when the element has not changed.
   useEffect(() => {
     const el = scrollRef.current;
+    if (attached.current?.el === el) return;
+    attached.current?.detach();
+    attached.current = null;
     if (!el) return;
+    let frame = 0;
     const read = () => {
-      frame.current = 0;
+      frame = 0;
       setMetrics((prev) =>
         prev.scrollTop === el.scrollTop && prev.height === el.clientHeight
           ? prev
@@ -59,18 +65,29 @@ export function useVirtualRows(
       );
     };
     const onScroll = () => {
-      if (!frame.current) frame.current = requestAnimationFrame(read);
+      if (!frame) frame = requestAnimationFrame(read);
     };
-    read();
+    onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onScroll) : null;
     ro?.observe(el);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      ro?.disconnect();
-      if (frame.current) cancelAnimationFrame(frame.current);
+    attached.current = {
+      el,
+      detach: () => {
+        el.removeEventListener("scroll", onScroll);
+        ro?.disconnect();
+        if (frame) cancelAnimationFrame(frame);
+      },
     };
-  }, [scrollRef]);
+  });
+
+  useEffect(
+    () => () => {
+      attached.current?.detach();
+      attached.current = null;
+    },
+    [],
+  );
 
   const range = computeRange(
     Math.max(0, metrics.scrollTop - headerOffset),

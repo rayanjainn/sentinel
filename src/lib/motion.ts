@@ -1,5 +1,5 @@
 // Motion presets from docs/DESIGN.md plus visibility helpers used to pause ambient animation.
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Transition } from "motion/react";
 
 export const springInteraction: Transition = { type: "spring", stiffness: 380, damping: 34 };
@@ -39,23 +39,33 @@ export function usePageVisible(): boolean {
 export function useOnScreen(ref: RefObject<Element | null>): boolean {
   const pageVisible = usePageVisible();
   const [intersecting, setIntersecting] = useState(true);
+  const attached = useRef<{ el: Element; detach: () => void } | null>(null);
   useEffect(() => {
     const el = ref.current;
+    if (attached.current?.el === el) return;
+    attached.current?.detach();
+    attached.current = null;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver((entries) => {
       const entry = entries[entries.length - 1];
       if (entry) setIntersecting(entry.isIntersecting);
     });
     io.observe(el);
-    return () => io.disconnect();
-  }, [ref]);
+    attached.current = { el, detach: () => io.disconnect() };
+  });
+  useEffect(() => () => attached.current?.detach(), []);
   return pageVisible && intersecting;
 }
 
 export function useElementSize<T extends Element>(ref: RefObject<T | null>): { width: number; height: number } {
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const attached = useRef<{ el: Element; detach: () => void } | null>(null);
+  // Re-checks after each render so elements mounted after a loading state are measured too.
   useEffect(() => {
     const el = ref.current;
+    if (attached.current?.el === el) return;
+    attached.current?.detach();
+    attached.current = null;
     if (!el) return;
     const update = (w: number, h: number) =>
       setSize((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
@@ -67,7 +77,8 @@ export function useElementSize<T extends Element>(ref: RefObject<T | null>): { w
       if (box) update(Math.round(box.width), Math.round(box.height));
     });
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [ref]);
+    attached.current = { el, detach: () => ro.disconnect() };
+  });
+  useEffect(() => () => attached.current?.detach(), []);
   return size;
 }
