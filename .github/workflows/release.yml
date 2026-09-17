@@ -1,0 +1,398 @@
+# Release pipeline for Sentinel.
+#
+# Trigger: pushing a tag named v<version>, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+# The tag must match the version in src-tauri/tauri.conf.json, Cargo.toml and package.json.
+#
+# Jobs:
+#   prepare  checks versions and signing secrets, creates (or reuses) a draft GitHub Release.
+#   build    tauri-action matrix: macOS arm64 + x64, Windows x64, Linux x64. Uploads installers
+#            to the draft release with versioned names:
+#              Sentinel-<version>-macos-arm64.dmg      Sentinel-<version>-macos-x64.dmg
+#              Sentinel-<version>-windows-x64.msi      Sentinel-<version>-windows-x64-setup.exe
+#              Sentinel-<version>-linux-x64.AppImage   Sentinel-<version>-linux-x64.deb
+#   publish  verifies every expected asset exists, uploads SHA256SUMS.txt, publishes the release.
+#
+# Signing (full walkthrough in docs/RELEASING.md):
+#   macOS    Developer ID signing + notarization when all Apple secrets are present. With none,
+#            builds are ad-hoc signed (users must approve them in Privacy & Security).
+#            A partial set fails the run so a misconfiguration never ships unsigned by accident.
+#   Windows  signed with a .pfx certificate or Azure Artifact Signing when configured, otherwise
+#            built unsigned with a warning. A missing Windows certificate never fails the run.
+#   Linux    not signed.
+#
+# TODO(secrets): add these in GitHub > Settings > Secrets and variables > Actions.
+#   macOS (Apple Developer Program membership required, https://developer.apple.com/programs/):
+#     APPLE_CERTIFICATE           base64 of the exported "Developer ID Application" .p12
+#     APPLE_CERTIFICATE_PASSWORD  password chosen when exporting the .p12
+#     APPLE_SIGNING_IDENTITY      optional, e.g. "Developer ID Application: Rayan Jain (TEAMID)"
+#     APPLE_ID                    Apple Account email used for notarization
+#     APPLE_PASSWORD              app-specific password from https://account.apple.com
+#     APPLE_TEAM_ID               10-character team ID from https://developer.apple.com/account
+#   Windows, option A (.pfx code signing certificate):
+#     WINDOWS_CERTIFICATE           base64 of the .pfx
+#     WINDOWS_CERTIFICATE_PASSWORD  .pfx export password
+#   Windows, option B (Azure Artifact Signing, formerly Trusted Signing):
+#     secrets   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
+#     variables AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE
+#   Optional repository variable RELEASE_DRAFT=true keeps the release as a draft for manual review.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Never cancel a release half-way; a second push of the same tag waits its turn.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release-id: ${{ steps.release.outputs.id }}
+      macos-signing: ${{ steps.signing.outputs.macos }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check tag matches app version
+        id: version
+        run: |
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          tauri_version="$(jq -r .version src-tauri/tauri.conf.json)"
+          npm_version="$(jq -r .version package.json)"
+          cargo_version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)"
+          status=0
+          for pair in "src-tauri/tauri.conf.json=$tauri_version" "package.json=$npm_version" "Cargo.toml [workspace.package]=$cargo_version"; do
+            file="${pair%%=*}"
+            found="${pair#*=}"
+            if [ "$found" != "$version" ]; then
+              echo "::error title=Version mismatch::Tag $tag expects version $version but $file has '$found'."
+              status=1
+            fi
+          done
+          [ "$status" -eq 0 ] || exit 1
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # All-or-nothing for macOS: signing without notarization is still blocked by
+      # Gatekeeper, and Tauri treats an empty variable as "configured".
+      - name: Check signing configuration
+        id: signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          present=()
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!name}" ]; then present+=("$name"); else missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "macos=true" >> "$GITHUB_OUTPUT"
+            echo "macOS builds will be signed and notarized." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${#present[@]}" -eq 0 ]; then
+            echo "macos=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Unsigned macOS build::No Apple signing secrets configured. macOS builds will be ad-hoc signed and not notarized. See docs/RELEASING.md."
+            echo "macOS builds are ad-hoc signed (no Apple secrets configured)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error title=Incomplete Apple signing secrets::Set all of APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID or none of them. Missing: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Create draft release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          # Re-running a failed release reuses its draft instead of creating a duplicate.
+          if ! gh release view "$tag" --json databaseId >/dev/null 2>&1; then
+            prerelease=()
+            # Versions with a pre-release suffix (0.2.0-beta.1) never become "latest".
+            case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
+            cat > "$RUNNER_TEMP/notes.md" <<EOF
+          ## Download
+
+          | Platform | File |
+          |---|---|
+          | macOS, Apple Silicon | \`Sentinel-$VERSION-macos-arm64.dmg\` |
+          | macOS, Intel | \`Sentinel-$VERSION-macos-x64.dmg\` |
+          | Windows 10/11, x64 | \`Sentinel-$VERSION-windows-x64-setup.exe\` or \`.msi\` |
+          | Linux x64, Debian/Ubuntu | \`Sentinel-$VERSION-linux-x64.deb\` |
+          | Linux x64, other distributions | \`Sentinel-$VERSION-linux-x64.AppImage\` |
+
+          Verify downloads against \`SHA256SUMS.txt\`. Install notes and first-run permissions:
+          https://rayanjainn.github.io/sentinel/docs/install/
+
+          EOF
+            gh release create "$tag" \
+              --draft \
+              --verify-tag \
+              --title "Sentinel $VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md" \
+              --generate-notes \
+              "${prerelease[@]}"
+          fi
+          echo "id=$(gh release view "$tag" --json databaseId --jq .databaseId)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+            asset: macos-arm64
+          - name: macOS x64
+            # Cross-compiled on the Apple Silicon runner.
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg
+            asset: macos-x64
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: msi,nsis
+            asset: windows-x64
+          - name: Linux x64
+            # Oldest supported glibc/webkit2gtk-4.1 baseline, so the AppImage runs on more distros.
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+            asset: linux-x64
+    env:
+      MACOS_SIGNING: ${{ needs.prepare.outputs.macos-signing }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libdbus-1-dev \
+            pkg-config \
+            build-essential \
+            xdg-utils
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # Tauri's beforeBuildCommand (`pnpm build`) builds the frontend; the CLI comes from devDependencies.
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Without Apple credentials, sign ad-hoc ("-") so Apple Silicon Macs can open the app
+      # after the user approves it; a fully unsigned bundle is reported as "damaged".
+      # With credentials, Tauri imports APPLE_CERTIFICATE itself and picks the identity from it
+      # unless APPLE_SIGNING_IDENTITY names one explicitly.
+      - name: Configure macOS signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          config="$RUNNER_TEMP/tauri.macos-signing.json"
+          if [ "$MACOS_SIGNING" = "true" ]; then
+            if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+              echo "Signing identity will be read from APPLE_CERTIFICATE."
+              exit 0
+            fi
+            jq -n --arg id "$APPLE_SIGNING_IDENTITY" '{bundle: {macOS: {signingIdentity: $id}}}' > "$config"
+          else
+            jq -n '{bundle: {macOS: {signingIdentity: "-"}}}' > "$config"
+            echo "::warning title=Unsigned macOS build::${{ matrix.name }} is ad-hoc signed and not notarized."
+          fi
+          echo "TAURI_EXTRA_ARGS=--config $config" >> "$GITHUB_ENV"
+
+      # Windows signing never fails the release: without credentials the installers are
+      # published unsigned and this step leaves a warning on the run.
+      - name: Configure Windows signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          $configPath = Join-Path $env:RUNNER_TEMP 'tauri.windows-signing.json'
+          $windows = $null
+
+          if ($env:WINDOWS_CERTIFICATE) {
+            $pfxPath = Join-Path $env:RUNNER_TEMP 'certificate.pfx'
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+            $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            Remove-Item $pfxPath
+            $windows = @{
+              certificateThumbprint = $cert.Thumbprint
+              digestAlgorithm = 'sha256'
+              timestampUrl = 'http://timestamp.digicert.com'
+            }
+            Write-Output "::notice title=Windows signing::Signing with certificate $($cert.Subject)"
+          }
+          elseif ($env:AZURE_CLIENT_ID -and $env:AZURE_SIGNING_ENDPOINT -and $env:AZURE_SIGNING_ACCOUNT -and $env:AZURE_SIGNING_PROFILE) {
+            cargo install artifact-signing-cli --locked
+            if ($LASTEXITCODE -ne 0) { throw 'cargo install artifact-signing-cli failed' }
+            $windows = @{
+              signCommand = "artifact-signing-cli -e $($env:AZURE_SIGNING_ENDPOINT) -a $($env:AZURE_SIGNING_ACCOUNT) -c $($env:AZURE_SIGNING_PROFILE) -d Sentinel %1"
+            }
+            Write-Output "::notice title=Windows signing::Signing with Azure Artifact Signing account $($env:AZURE_SIGNING_ACCOUNT)"
+          }
+          else {
+            Write-Output "::warning title=Unsigned Windows build::No Windows signing credentials configured (WINDOWS_CERTIFICATE or Azure Artifact Signing). Installers are unsigned and SmartScreen will warn users. See docs/RELEASING.md."
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value 'Windows installers are **unsigned** (no signing credentials configured).'
+            exit 0
+          }
+
+          @{ bundle = @{ windows = $windows } } | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding utf8NoBOM
+          Add-Content -Path $env:GITHUB_ENV -Value "TAURI_EXTRA_ARGS=--config $configPath"
+
+      # Two variants of the same build step: Tauri treats a defined-but-empty APPLE_* variable
+      # as configured, so Apple credentials are only passed when all of them exist.
+      # Keep the `with:` blocks of both steps identical.
+      - name: Build and upload (signed macOS)
+        if: runner.os == 'macOS' && env.MACOS_SIGNING == 'true'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          releaseId: ${{ needs.prepare.outputs.release-id }}
+          tauriScript: pnpm tauri
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} ${{ env.TAURI_EXTRA_ARGS }}
+          releaseAssetNamePattern: Sentinel-[version]-${{ matrix.asset }}[setup][ext]
+          uploadUpdaterJson: false
+
+      - name: Build and upload
+        if: runner.os != 'macOS' || env.MACOS_SIGNING != 'true'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Read by artifact-signing-cli only when Azure signing was configured above.
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        with:
+          releaseId: ${{ needs.prepare.outputs.release-id }}
+          tauriScript: pnpm tauri
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} ${{ env.TAURI_EXTRA_ARGS }}
+          releaseAssetNamePattern: Sentinel-[version]-${{ matrix.asset }}[setup][ext]
+          uploadUpdaterJson: false
+
+  publish:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      # The website's download buttons match these exact names; fail loudly if one is missing.
+      - name: Verify release assets
+        run: |
+          tag="$GITHUB_REF_NAME"
+          expected=(
+            "Sentinel-$VERSION-macos-arm64.dmg"
+            "Sentinel-$VERSION-macos-x64.dmg"
+            "Sentinel-$VERSION-windows-x64.msi"
+            "Sentinel-$VERSION-windows-x64-setup.exe"
+            "Sentinel-$VERSION-linux-x64.AppImage"
+            "Sentinel-$VERSION-linux-x64.deb"
+          )
+          actual="$(gh release view "$tag" --json assets --jq '.assets[].name')"
+          echo "Uploaded assets:"
+          echo "$actual"
+          status=0
+          for name in "${expected[@]}"; do
+            if ! grep -qxF "$name" <<< "$actual"; then
+              echo "::error title=Missing release asset::$name was not uploaded."
+              status=1
+            fi
+          done
+          exit "$status"
+
+      - name: Upload SHA256SUMS.txt
+        run: |
+          tag="$GITHUB_REF_NAME"
+          mkdir -p "$RUNNER_TEMP/assets"
+          cd "$RUNNER_TEMP/assets"
+          gh release download "$tag" --pattern "Sentinel-$VERSION-*"
+          sha256sum Sentinel-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$tag" SHA256SUMS.txt --clobber
+
+      - name: Publish
+        env:
+          KEEP_DRAFT: ${{ vars.RELEASE_DRAFT }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if [ "$KEEP_DRAFT" = "true" ]; then
+            echo "::notice title=Draft kept::RELEASE_DRAFT=true, publish Sentinel $VERSION manually from the Releases page."
+            exit 0
+          fi
+          gh release edit "$tag" --draft=false
+          echo "Published $(gh release view "$tag" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"

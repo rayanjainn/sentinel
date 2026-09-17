@@ -1,0 +1,6 @@
+# Sentinel never permanently deletes user files: deletion goes through the OS trash (`FileOps::trash`).
+disallowed-methods = [
+  { path = "std::fs::remove_file", reason = "move to the OS trash with FileOps::trash instead" },
+  { path = "std::fs::remove_dir", reason = "move to the OS trash with FileOps::trash instead" },
+  { path = "std::fs::remove_dir_all", reason = "move to the OS trash with FileOps::trash instead" },
+]

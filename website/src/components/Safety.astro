@@ -1,0 +1,354 @@
+---
+import { href } from "../lib/site";
+import Icon from "./Icon.astro";
+
+const steps = [
+  {
+    title: "It looks before it suggests",
+    body: "Read-only tools collect live process, network and disk data first. A change proposed without reading your system is refused.",
+  },
+  {
+    title: "Each change becomes a card",
+    body: "A card says what will happen, what it touches and the expected result. You approve, reject or edit each one. Even “just clean everything” produces cards.",
+  },
+  {
+    title: "Only approved cards run",
+    body: "Sentinel re-checks that the process or file is still the same one, then runs it. Deleted files go to the Trash, and every step lands in the activity log.",
+  },
+];
+---
+
+<section id="safety" class="safety" aria-labelledby="safety-title">
+  <div class="wrap safety-grid">
+    <div class="safety-copy">
+      <h2 id="safety-title" class="section-title">The agent proposes. You decide what runs.</h2>
+      <p class="section-lede">
+        The agent can only do what the app's own buttons do, and none of it without you. There is no
+        setting that lets it act on its own.
+      </p>
+
+      <ol class="safety-steps">
+        {
+          steps.map((step, index) => (
+            <li>
+              <span class="step-index mono" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+
+      <a class="arrow-link" href={href("docs/agent-safety/")}>
+        How the agent stays safe
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </div>
+
+    <figure class="plan" aria-labelledby="plan-caption">
+      <div class="plan-top">
+        <span class="plan-heading">Agent</span>
+        <span class="plan-badge"><span class="plan-badge-dot"></span>Local model</span>
+      </div>
+
+      <div class="plan-body">
+        <p class="plan-request">
+          Free up 10 GB, but don't touch anything I've used in the last two weeks.
+        </p>
+        <p class="plan-reply">
+          I scanned your home folder and checked when each candidate was last opened. These two
+          haven't been used in over a month:
+        </p>
+
+        <ul class="plan-cards">
+          <li class="plan-card" data-state="approved">
+            <div class="plan-card-head">
+              <span class="plan-card-action"><Icon name="trash" size={16} />Move to Trash</span>
+              <span class="plan-card-state"><Icon name="check" size={14} />Approved</span>
+            </div>
+            <p class="plan-card-path mono">~/Library/Caches/old-app</p>
+            <p class="plan-card-impact"><span class="mono">2.3 GB</span>, last modified 47 days ago</p>
+            <div class="plan-card-controls" aria-hidden="true">
+              <span class="plan-control is-on">Approve</span>
+              <span class="plan-control">Reject</span>
+              <span class="plan-control"><Icon name="pencil-simple" size={14} />Edit</span>
+            </div>
+          </li>
+          <li class="plan-card" data-state="pending">
+            <div class="plan-card-head">
+              <span class="plan-card-action"><Icon name="trash" size={16} />Move to Trash</span>
+              <span class="plan-card-state">Waiting for you</span>
+            </div>
+            <p class="plan-card-path mono">~/Projects/prototype/node_modules</p>
+            <p class="plan-card-impact"><span class="mono">1.1 GB</span>, last opened 83 days ago</p>
+            <div class="plan-card-controls" aria-hidden="true">
+              <span class="plan-control">Approve</span>
+              <span class="plan-control">Reject</span>
+              <span class="plan-control"><Icon name="pencil-simple" size={14} />Edit</span>
+            </div>
+          </li>
+        </ul>
+
+        <div class="plan-run" aria-hidden="true">
+          <span class="plan-run-button">Run 1 approved action</span>
+          <span class="plan-run-note">Nothing runs until you choose.</span>
+        </div>
+      </div>
+
+      <figcaption id="plan-caption">
+        Illustration of a plan in the agent panel. Real plans show sizes and dates measured on your
+        computer.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .safety {
+    padding-block: clamp(56px, 9vw, 120px);
+    border-top: 1px solid var(--line);
+  }
+
+  .safety-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: clamp(40px, 7vw, 112px);
+    align-items: center;
+  }
+
+  .safety-steps {
+    margin: 40px 0 32px;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .safety-steps li {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 16px;
+    padding-block: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .step-index {
+    color: var(--signal);
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+
+  .safety-steps h3 {
+    font-size: 1.0625rem;
+    font-weight: 580;
+    letter-spacing: -0.01em;
+  }
+
+  .safety-steps p {
+    max-width: 52ch;
+    margin-top: 6px;
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  /* Plan illustration: modeled on the agent panel's plan cards. */
+  .plan {
+    margin: 0;
+  }
+
+  .plan-top,
+  .plan-body {
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+  }
+
+  .plan-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 0;
+    border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
+  }
+
+  .plan-heading {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .plan-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--signal-wash);
+    color: var(--signal);
+    font-size: 0.75rem;
+    font-weight: 550;
+  }
+
+  .plan-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .plan-body {
+    display: grid;
+    gap: 14px;
+    padding: 18px 16px 16px;
+    border-radius: 0 0 var(--radius-dialog) var(--radius-dialog);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .plan-request {
+    justify-self: end;
+    max-width: 34ch;
+    padding: 10px 14px;
+    border-radius: 12px 12px 4px 12px;
+    background: var(--raised);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .plan-reply {
+    max-width: 44ch;
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .plan-cards {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .plan-card {
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-panel);
+    background: var(--ground);
+  }
+
+  .plan-card[data-state="approved"] {
+    border-color: color-mix(in srgb, var(--signal) 45%, transparent);
+  }
+
+  .plan-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+
+  .plan-card-action,
+  .plan-card-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .plan-card-action {
+    font-size: 0.875rem;
+    font-weight: 580;
+  }
+
+  .plan-card-action :global(svg) {
+    color: var(--danger);
+  }
+
+  .plan-card-state {
+    color: var(--fg-muted);
+    font-size: 0.75rem;
+  }
+
+  .plan-card[data-state="approved"] .plan-card-state {
+    color: var(--signal);
+  }
+
+  .plan-card-path {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+    font-size: 0.8125rem;
+  }
+
+  .plan-card-impact {
+    margin-top: 2px;
+    color: var(--fg-muted);
+    font-size: 0.8125rem;
+  }
+
+  .plan-card-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .plan-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-control);
+    color: var(--fg-muted);
+    font-size: 0.75rem;
+    font-weight: 550;
+  }
+
+  .plan-control.is-on {
+    border-color: transparent;
+    background: var(--signal);
+    color: var(--signal-ink);
+  }
+
+  .plan-run {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .plan-run-button {
+    padding: 7px 12px;
+    border-radius: var(--radius-control);
+    background: var(--raised);
+    border: 1px solid var(--line-strong);
+    font-size: 0.8125rem;
+    font-weight: 580;
+  }
+
+  .plan-run-note {
+    color: var(--fg-muted);
+    font-size: 0.75rem;
+  }
+
+  .plan figcaption {
+    margin-top: 14px;
+    color: var(--fg-muted);
+    font-size: 0.8125rem;
+  }
+
+  @media (max-width: 959px) {
+    .safety-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .plan {
+      max-width: 560px;
+    }
+  }
+</style>
