@@ -151,6 +151,69 @@ body {
   animation: live-pulse 2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
+/* World map: endpoint pulses and packets travelling along great-circle arcs (transform/opacity only;
+   offset-distance resolves to a transform along the motion path). */
+@keyframes map-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+.map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-pulse var(--pulse, 2.6s) cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes map-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+.map-packet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--signal);
+  offset-anchor: 50% 50%;
+  offset-rotate: 0deg;
+  opacity: 0;
+  animation: map-packet var(--duration, 2.4s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: var(--delay, 0s);
+  pointer-events: none;
+}
+
+@keyframes map-arc-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.map-arc {
+  animation: map-arc-in 600ms ease-out both;
+}
+
 [data-paused="true"] *,
 [data-paused="true"] {
   animation-play-state: paused !important;
@@ -158,7 +221,12 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after,
-  .live-ping {
+  .live-ping,
+  .map-pulse,
+  .map-arc {
     animation: none;
+  }
+  .map-packet {
+    display: none;
   }
 }
