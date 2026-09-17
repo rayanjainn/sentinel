@@ -67,6 +67,8 @@ pub enum Origin {
         plan_id: String,
         provider: String,
         model: String,
+        /// The user message that produced the plan; recorded as the audit trigger.
+        request: String,
     },
 }
 
