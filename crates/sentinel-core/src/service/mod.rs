@@ -4,8 +4,12 @@
 //! Tauri commands and by the agent's read tools, so both see identical data. Methods are blocking;
 //! async callers wrap them in `spawn_blocking`.
 
+pub mod actions;
+#[cfg(feature = "native")]
+pub mod audit_sqlite;
 pub mod history;
 pub mod sampling;
+pub mod tokens;
 
 use std::time::Duration;
 

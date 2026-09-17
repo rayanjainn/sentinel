@@ -12,6 +12,7 @@ use crate::events::{CoreEvent, EventSink, SamplingConfig, StreamKind};
 use crate::model::*;
 use crate::platform::{self, PlatformConfig, Providers};
 use crate::provider::{PermissionProbe, ProcessControl, ProcessProvider, ResourceProvider};
+use crate::service::actions::ActionContext;
 use crate::service::history::{ProcessHistory, ResourceHistory};
 use crate::service::sampling::clamp_config;
 use crate::service::{FileFilter, SystemQueries};
@@ -109,6 +110,16 @@ impl CoreRuntime {
 
     pub fn process_control(&self) -> Arc<dyn ProcessControl> {
         Arc::clone(&self.shared.process_control)
+    }
+
+    pub fn open_permission_settings(&self, kind: PermissionKind) -> CoreResult<()> {
+        self.shared.permissions.open_settings(kind)
+    }
+}
+
+impl ActionContext for CoreRuntime {
+    fn lookup_process(&self, pid: Pid) -> CoreResult<ProcessInfo> {
+        self.shared.processes.lock().provider.lookup(pid)
     }
 }
 
