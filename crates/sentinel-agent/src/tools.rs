@@ -12,6 +12,8 @@ use ts_rs::TS;
 use sentinel_core::CoreResult;
 use sentinel_core::action::Action;
 
+pub mod specs;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
