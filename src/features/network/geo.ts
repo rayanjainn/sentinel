@@ -3,6 +3,8 @@ import type { SocketEntry } from "../../bindings/SocketEntry";
 
 export interface EndpointCluster {
   id: string;
+  /** Location keys (see `geoKey`) pooled into this cluster, for filtering the table by selection. */
+  keys: string[];
   x: number;
   y: number;
   lat: number;
@@ -15,6 +17,10 @@ export interface EndpointCluster {
 }
 
 type Projector = (lonLat: [number, number]) => [number, number] | null;
+
+export function geoKey(s: SocketEntry): string | null {
+  return s.geo ? `${s.geo.lat.toFixed(2)},${s.geo.lon.toFixed(2)}` : null;
+}
 
 function placeLabel(s: SocketEntry): string {
   const g = s.geo;
@@ -31,12 +37,12 @@ export function clusterEndpoints(sockets: SocketEntry[], project: Projector, rad
   const pools = new Map<string, EndpointCluster>();
   for (const s of sockets) {
     if (!s.geo || s.remoteScope !== "public" || s.remoteAddr === null) continue;
-    const key = `${s.geo.lat.toFixed(2)},${s.geo.lon.toFixed(2)}`;
+    const key = geoKey(s)!;
     let pool = pools.get(key);
     if (!pool) {
       const p = project([s.geo.lon, s.geo.lat]);
       if (!p) continue;
-      pool = { id: key, x: p[0], y: p[1], lat: s.geo.lat, lon: s.geo.lon, sockets: [], endpoints: 0, bps: 0, label: placeLabel(s) };
+      pool = { id: key, keys: [key], x: p[0], y: p[1], lat: s.geo.lat, lon: s.geo.lon, sockets: [], endpoints: 0, bps: 0, label: placeLabel(s) };
       pools.set(key, pool);
     }
     pool.sockets.push(s);
@@ -50,10 +56,11 @@ export function clusterEndpoints(sockets: SocketEntry[], project: Projector, rad
     const target = clusters.find((c) => (c.x - pool.x) ** 2 + (c.y - pool.y) ** 2 <= r2);
     if (target) {
       target.sockets.push(...pool.sockets);
+      target.keys.push(...pool.keys);
       target.bps += pool.bps;
       if (target.label !== pool.label && !target.label.endsWith("nearby")) target.label = `${target.label} and nearby`;
     } else {
-      clusters.push({ ...pool, sockets: [...pool.sockets] });
+      clusters.push({ ...pool, sockets: [...pool.sockets], keys: [...pool.keys] });
     }
   }
   for (const c of clusters) c.endpoints = new Set(c.sockets.map((s) => s.remoteAddr)).size;

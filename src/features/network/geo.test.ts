@@ -48,6 +48,7 @@ describe("clusterEndpoints", () => {
     expect(clusters[0]!.bps).toBe(45);
     expect(clusters[0]!.endpoints).toBe(3);
     expect(clusters[0]!.id).toBe("37.77,-122.42");
+    expect(clusters[0]!.keys).toEqual(["37.77,-122.42", "37.80,-122.27"]);
   });
 
   it("skips private, unlocated and unprojectable endpoints", () => {
