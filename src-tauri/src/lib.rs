@@ -2,11 +2,17 @@ mod commands;
 mod state;
 
 use commands::{actions, agent, firewall, network, process, storage, system};
+use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            let core = state::build(app.handle())?;
+            app.manage(core);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             system::get_system_info,
             system::get_resource_history,
