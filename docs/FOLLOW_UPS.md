@@ -40,8 +40,25 @@ Items deliberately deferred or not yet verified. Each needs closing before the D
 - Live provider tests pending: local Ollama (`llama3.1:8b`), Gemini and Ollama Cloud keys from the
   user.
 
-## Frontend (workstream B — in progress)
-- Tracked in its final report; Network and Storage views were outstanding when A merged.
+## Frontend (workstream B — merged)
+
+### Needs live verification
+Checked in code only, because the automated session could not drive clicks or keys (no
+Accessibility permission): process tree connector lines, Network "Listening" and "Firewall rules"
+tabs, Storage "Largest files" tab, treemap zoom and breadcrumb animations, the geolocation database
+download prompt, and first-run onboarding. Click through each by hand.
+
+### Contract gaps
+- `SocketEntry` carries only `pid`, so actions from the Network view look up the process start time
+  first. Adding `startTime` to sockets would remove the extra round trip.
+- `ItemOutcome` has no `path`; partial trash/move results are matched to rows by display label. Add
+  a `path` (or target index) field so batch results map exactly.
+- `NetThroughput.rxBps` / `txBps` do not state bytes vs bits. The UI assumes bytes per second;
+  document it in the type (or rename to `rxBytesPerSec`).
+
+### Performance
+- Idle `sentinel-app` measured 64–100 MB RSS on a dev build; WebKit content processes were not
+  measured separately. Include them in the release-build measurement.
 
 ## Ship (workstream D — merged)
 - No GitHub repository yet: `ci.yml`, `release.yml` and `deploy-site.yml` are unrun.
