@@ -70,6 +70,29 @@ export const FILE_KINDS: Record<FileKindGroup, FileKindStyle> = {
   other: { label: "Other", varName: "--viz-kind-folded-alt", slot: null },
 };
 
+export function fileKindHex(kind: FileKindGroup | null, mode: "dark" | "light"): string {
+  const style = kind ? FILE_KINDS[kind] : FILE_KINDS.other;
+  if (style.slot !== null) return categorical[style.slot]![mode];
+  return style.varName === "--viz-kind-folded" ? neutral.folded[mode] : neutral.foldedAlt[mode];
+}
+
+function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const channel = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+}
+
+/** Label ink for text set inside a filled mark: whichever of near-white or near-black contrasts more. */
+export function inkOn(hex: string): string {
+  const l = luminance(hex);
+  const onDark = (1.05) / (l + 0.05);
+  const onLight = (l + 0.05) / (luminance("#0e1217") + 0.05);
+  return onDark >= onLight ? "#ffffff" : "#0e1217";
+}
+
 export function fileKindFill(kind: FileKindGroup | null): string {
   return `var(${kind ? FILE_KINDS[kind].varName : "--viz-kind-folded-alt"})`;
 }
