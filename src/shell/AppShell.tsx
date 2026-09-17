@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 
 import { EmptyState, StatePanel } from "../components/States";
 import { AuditLogView } from "../features/agent";
+import { NetworkView } from "../features/network/NetworkView";
 import { ProcessesView } from "../features/processes/ProcessesView";
 import { ResourcesView } from "../features/resources/ResourcesView";
 import { SettingsView } from "../features/settings/SettingsView";
@@ -22,6 +23,7 @@ function ActivityView() {
 
 const VIEWS: Partial<Record<ViewId, ComponentType>> = {
   processes: ProcessesView,
+  network: NetworkView,
   resources: ResourcesView,
   activity: ActivityView,
   settings: SettingsView,
