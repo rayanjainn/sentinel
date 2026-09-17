@@ -96,6 +96,10 @@ pub struct SocketEntry {
     pub state: Option<TcpState>,
     pub pid: Option<Pid>,
     pub process_name: Option<String>,
+    /// Owning app for a helper process ("Brave Browser" for one of its renderer processes), so
+    /// the connections list can group many helper PIDs under one app the same way the process
+    /// table does. `None` when the process is not a recognised helper, or its owner is unknown.
+    pub app_name: Option<String>,
     /// Start time of the owning process, so an action taken from the Network view can build a
     /// `ProcessIdentity` without a separate lookup. `None` when `pid` is `None` or the owning
     /// process could not be resolved at sample time.

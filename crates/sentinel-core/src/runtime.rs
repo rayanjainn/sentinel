@@ -467,6 +467,7 @@ fn process_owners(shared: &Shared, pids: &[Pid]) -> HashMap<Pid, ProcessOwner> {
                                 *pid,
                                 ProcessOwner {
                                     name: p.name.clone(),
+                                    app_name: p.summary.app_name.clone(),
                                     start_time: Some(p.start_time),
                                     role: Some(p.summary.role),
                                 },
@@ -487,6 +488,7 @@ fn process_owners(shared: &Shared, pids: &[Pid]) -> HashMap<Pid, ProcessOwner> {
                 pid,
                 ProcessOwner {
                     name,
+                    app_name: None,
                     start_time: None,
                     role: None,
                 },

@@ -19,6 +19,12 @@ id: string, protocol: TransportProtocol, family: IpFamily, localAddr: string, lo
  */
 state: TcpState | null, pid: number | null, processName: string | null, 
 /**
+ * Owning app for a helper process ("Brave Browser" for one of its renderer processes), so
+ * the connections list can group many helper PIDs under one app the same way the process
+ * table does. `None` when the process is not a recognised helper, or its owner is unknown.
+ */
+appName: string | null, 
+/**
  * Start time of the owning process, so an action taken from the Network view can build a
  * `ProcessIdentity` without a separate lookup. `None` when `pid` is `None` or the owning
  * process could not be resolved at sample time.

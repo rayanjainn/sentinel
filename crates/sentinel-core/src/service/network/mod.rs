@@ -32,6 +32,7 @@ use self::geo::GeoDb;
 #[derive(Debug, Clone)]
 pub struct ProcessOwner {
     pub name: String,
+    pub app_name: Option<String>,
     pub start_time: Option<TimestampSecs>,
     pub role: Option<ProcessRole>,
 }
@@ -225,6 +226,7 @@ impl NetworkMonitor {
                 state: socket.state,
                 pid: socket.pid,
                 process_name: owner.map(|o| o.name.clone()),
+                app_name: owner.and_then(|o| o.app_name.clone()),
                 process_start_time: owner.and_then(|o| o.start_time),
                 remote_host,
                 geo,
@@ -333,6 +335,7 @@ mod tests {
                         *p,
                         ProcessOwner {
                             name: format!("proc{p}"),
+                            app_name: None,
                             start_time: Some(1_700_000_000),
                             role: None,
                         },
