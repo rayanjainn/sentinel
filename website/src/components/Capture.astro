@@ -1,0 +1,117 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  /** Window title shown in the frame, e.g. the module name. */
+  title: string;
+  /** What the real screenshot or recording must show. Rendered in the placeholder and an HTML comment. */
+  shot: string;
+  /** CSS aspect-ratio of the capture area. The app window is 1440 x 920. */
+  aspect?: string;
+  class?: string;
+}
+
+const { title, shot, aspect = "1440 / 920", class: className } = Astro.props;
+// Kept in the built HTML so a search for PLACEHOLDER finds every slot that needs a real capture.
+const marker = `<!-- PLACEHOLDER: replace with real capture. ${shot.replaceAll("--", "-")} -->`;
+---
+
+<Fragment set:html={marker} />
+<figure class:list={["capture", className]} data-placeholder>
+  <div class="capture-bar" aria-hidden="true">
+    <span class="capture-dots"><span></span><span></span><span></span></span>
+    <span class="capture-title">{title}</span>
+  </div>
+  <div class="capture-body" style={`aspect-ratio: ${aspect}`}>
+    <p class="capture-flag">
+      <Icon name="warning" size={16} />
+      <span>PLACEHOLDER — replace with real capture</span>
+    </p>
+    <p class="capture-shot">{shot}</p>
+  </div>
+</figure>
+
+<style>
+  .capture {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-dialog);
+    background: var(--panel);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .capture-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 34px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .capture-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .capture-dots span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
+
+  .capture-title {
+    color: var(--fg-subtle);
+    font-size: 0.75rem;
+  }
+
+  .capture-body {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: clamp(16px, 4vw, 40px);
+    background-color: var(--sunken);
+    /* Hatching marks the area as unfinished, like a missing-asset slot in a layout file. */
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--line) 0 1px,
+      transparent 1px 14px
+    );
+    text-align: center;
+  }
+
+  .capture-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent);
+    border-radius: var(--radius-control);
+    background: var(--panel);
+    color: var(--warn);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .capture-flag :global(svg) {
+    flex: none;
+  }
+
+  .capture-shot {
+    max-width: 48ch;
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 519px) {
+    .capture-shot {
+      display: none;
+    }
+  }
+</style>
