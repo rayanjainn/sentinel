@@ -5,6 +5,7 @@ import type { ExtensionStat } from "../../bindings/ExtensionStat";
 import type { FileKindGroup } from "../../bindings/FileKindGroup";
 import type { TreeNode } from "../../bindings/TreeNode";
 import { openContextMenu } from "../../components/ContextMenu";
+import { InfoTip } from "../../components/InfoTip";
 import { formatBytes, formatCount, formatPercent } from "../../lib/format";
 import { FILE_KIND_ORDER, FILE_KINDS, fileKindFill } from "../../styles/dataviz";
 import { nodeMenu } from "./storageActions";
@@ -29,7 +30,10 @@ export function FolderContents({
   return (
     <section aria-label={`Contents of ${node.name}`} className="flex shrink-0 flex-col">
       <div className="flex items-baseline justify-between px-4 pb-2">
-        <h3 className="text-[13px] font-medium text-fg">Largest items here</h3>
+        <h3 className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
+          Largest items here
+          <InfoTip id="allocatedSize" />
+        </h3>
         <span className="num text-[12px] text-fg-muted">{formatBytes(node.sizeBytes, { base: 1000 })}</span>
       </div>
       <ul className="px-2">
@@ -37,14 +41,15 @@ export function FolderContents({
           const share = total > 0 ? c.sizeBytes / total : 0;
           const zoomable = c.kind === "directory" && c.hasChildren;
           const Icon = c.kind === "directory" ? Folder : c.kind === "smallFiles" || c.kind === "remainder" ? Rows : File;
+          const specialGlossaryId = c.kind === "smallFiles" ? "smallFilesNode" : c.kind === "remainder" ? "otherItemsNode" : undefined;
           return (
-            <li key={c.id}>
+            <li key={c.id} className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={!zoomable && c.kind !== "file"}
                 onClick={() => zoomable && onZoom(c)}
                 onContextMenu={(e) => openContextMenu(e, nodeMenu(c, zoomable ? () => onZoom(c) : undefined), c.name)}
-                className="flex w-full flex-col gap-1 rounded-[5px] px-2 py-1.5 text-left hover:bg-raised disabled:cursor-default disabled:hover:bg-transparent"
+                className="flex min-w-0 flex-1 flex-col gap-1 rounded-[5px] px-2 py-1.5 text-left hover:bg-raised disabled:cursor-default disabled:hover:bg-transparent"
                 title={c.path}
               >
                 <div className="flex items-center gap-2 text-[12px]">
@@ -59,6 +64,7 @@ export function FolderContents({
                   />
                 </div>
               </button>
+              {specialGlossaryId && <InfoTip id={specialGlossaryId} className="shrink-0" />}
             </li>
           );
         })}

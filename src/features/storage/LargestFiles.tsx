@@ -57,7 +57,7 @@ export function LargestFiles() {
             <span>File</span>
             <span className="flex items-center justify-end gap-1.5 px-3 text-right">
               Size
-              <InfoTip id="apparentSize" />
+              <InfoTip id="allocatedSize" />
             </span>
             <span className="px-3">Modified</span>
             <span />

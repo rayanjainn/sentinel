@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 
 import { Button } from "../../components/Button";
+import { InfoTip } from "../../components/InfoTip";
 import { formatBytes, pluralize } from "../../lib/format";
 import { springInteraction } from "../../lib/motion";
 
@@ -52,6 +53,7 @@ export function SelectionBar({
             <Button size="sm" variant="danger" icon={<Trash size={13} />} onClick={onTrash} disabled={disabled}>
               Move to Trash
             </Button>
+            <InfoTip id="moveToTrash" />
           </div>
         </motion.div>
       )}

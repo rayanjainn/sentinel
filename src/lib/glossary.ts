@@ -146,10 +146,6 @@ const ENTRIES = {
     term: "Proto",
     definition: "TCP (a two-way, connection-based stream) or UDP (single packets sent without a lasting connection).",
   },
-  trafficColumn: {
-    term: "Traffic",
-    definition: "How much data has moved on this connection. Shows a live rate where the platform exposes one, otherwise a running total since Sentinel first saw it.",
-  },
   // CPU & memory ------------------------------------------------------------------------------------
   loadAverage: {
     term: "Load average",
@@ -213,12 +209,7 @@ const ENTRIES = {
   allocatedSize: {
     term: "Size on disk",
     definition:
-      "The space a file actually occupies, in whole disk blocks. Usually close to its apparent size, but can be smaller for a sparse file, or rounded up on a disk with a large block size.",
-  },
-  apparentSize: {
-    term: "Exact size",
-    definition: "A file's size as measured from its contents — the number you'd see in its properties. Can differ slightly from what it actually occupies on disk (size on disk).",
-    unit: "Bytes.",
+      "The space a file actually occupies on disk, in whole disk blocks — what Sentinel shows everywhere it lists a size, and what you actually get back by removing it. Usually close to the file's exact byte count (its \"apparent size\"), but can be smaller for a sparse file, or rounded up on a disk with a large block size.",
   },
   smallFilesNode: {
     term: "Small files",
