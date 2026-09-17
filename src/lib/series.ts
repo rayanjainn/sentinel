@@ -47,11 +47,16 @@ function dedupe<T extends Timestamped>(items: T[]): T[] {
 
 /** Index of the first sample with tsMs >= fromMs (binary search). */
 export function lowerBound<T extends Timestamped>(items: T[], fromMs: number): number {
+  return lowerBoundBy(items, fromMs, (item) => item.tsMs);
+}
+
+/** Index of the first item whose key is >= value, for items sorted ascending by `key`. */
+export function lowerBoundBy<T>(items: T[], value: number, key: (item: T) => number): number {
   let lo = 0;
   let hi = items.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (items[mid]!.tsMs < fromMs) lo = mid + 1;
+    if (key(items[mid]!) < value) lo = mid + 1;
     else hi = mid;
   }
   return lo;
