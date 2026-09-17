@@ -3,6 +3,7 @@
 //! Every result is a compact JSON object with a one-line `summary` (surfaced in the chat's tool
 //! row). Lists are truncated with totals so the model knows what it is not seeing.
 
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -483,10 +484,10 @@ fn list_processes(q: &dyn SystemQueries, args: &Args) -> CoreResult<Value> {
         })
         .collect();
     match args.string("sort_by")?.as_deref().unwrap_or("cpu") {
-        "memory" => rows.sort_by(|a, b| b.memory_rss.cmp(&a.memory_rss)),
-        "name" => rows.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+        "memory" => rows.sort_by_key(|r| Reverse(r.memory_rss)),
+        "name" => rows.sort_by_key(|r| r.name.to_lowercase()),
         "pid" => rows.sort_by_key(|p| p.pid),
-        "start_time" => rows.sort_by(|a, b| b.start_time.cmp(&a.start_time)),
+        "start_time" => rows.sort_by_key(|r| Reverse(r.start_time)),
         _ => rows.sort_by(|a, b| b.cpu_percent.total_cmp(&a.cpu_percent)),
     }
     let limit = args.uint_or("limit", 25)?.clamp(1, 100) as usize;
@@ -768,7 +769,7 @@ fn scan_storage(q: &dyn SystemQueries, args: &Args, timeout: Duration) -> CoreRe
         .map(|x| x.size_bytes)
         .sum();
     let mut by_type = s.by_extension.clone();
-    by_type.sort_by(|a, b| b.bytes.cmp(&a.bytes));
+    by_type.sort_by_key(|t| Reverse(t.bytes));
     Ok(json!({
         "summary": format!("{}: {} in {} files", s.root, fmt_bytes(s.total_bytes), s.file_count),
         "root": s.root,
@@ -1000,7 +1001,7 @@ fn duplicates(q: &dyn SystemQueries, args: &Args, timeout: Duration) -> CoreResu
     for g in &mut groups {
         g.reclaimable_bytes = g.size_bytes * (g.files.len() as u64 - 1);
     }
-    groups.sort_by(|a, b| b.reclaimable_bytes.cmp(&a.reclaimable_bytes));
+    groups.sort_by_key(|g| Reverse(g.reclaimable_bytes));
     let reclaimable: u64 = groups.iter().map(|g| g.reclaimable_bytes).sum();
     let (groups, total, is_truncated) = truncated(groups, limit);
     Ok(json!({

@@ -32,6 +32,17 @@ Items deliberately deferred or not yet verified. Each needs closing before the D
 - `sysinfo` pinned to 0.38 because 0.39 needs rustc 1.95 (local toolchain is 1.94). Bump when the
   toolchain is updated.
 
+### Verification limits
+- `cargo check -p sentinel-agent --target x86_64-pc-windows-msvc` /
+  `x86_64-unknown-linux-gnu` cannot run from this Mac: `sentinel-agent` pulls in `reqwest`'s
+  rustls backend, whose `aws-lc-sys` dependency compiles native C code and needs a real
+  Windows SDK / Linux cross-`gcc` to do so, neither installed here. `sentinel-core` has no such
+  dependency, so its cross-checks (which do run locally) stay a reliable signal; `sentinel-agent`
+  relies on the real CI runners for Windows/Linux compilation.
+- CI's Rust toolchain is newer than this machine's (`clippy` `1.98` vs local `1.94`), so lints that
+  only trigger on the newer clippy (e.g. `unnecessary_sort_by`, `collapsible_if`) won't show up in
+  a local `cargo clippy` run — caught here by watching the actual GitHub Actions run once pushed.
+
 ## Agent layer (workstream C — paused)
 - Remaining: write-tool translator, conversation engine, plan executor, safety test suite,
   keychain secrets, agent Tauri commands, chat panel / plan cards / audit log / agent settings UI.
