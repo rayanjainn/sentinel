@@ -1,0 +1,57 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+website/dist/
+website/.astro/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Tauri generated
+src-tauri/gen/schemas/
+
+# Env and secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.keystore
+secrets/
+sentinel.local.json
+
+# Downloaded data
+*.mmdb
+*.mmdb.gz
+
+# OS junk
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+.directory
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Tooling output
+graphify-out/
