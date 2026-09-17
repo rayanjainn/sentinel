@@ -26,7 +26,8 @@ const land = feature(topology, objects.land) as unknown as FeatureCollection;
 const borders = mesh(topology, objects.countries, (a, b) => a !== b) as MultiLineString;
 const graticule = geoGraticule10();
 
-// Extent used to fit the projection: the inhabited latitudes, so Antarctica does not waste height.
+// Extent used to fit the projection: up to the pole, because great-circle arcs between the
+// northern continents cross the Arctic, but not Antarctica, which would only waste height.
 const FIT_EXTENT: Feature = {
   type: "Feature",
   properties: {},
@@ -35,10 +36,10 @@ const FIT_EXTENT: Feature = {
     coordinates: [
       [-180, 0],
       [180, 0],
-      [0, 83],
+      [0, 90],
+      [-180, 90],
+      [180, 90],
       [0, -56],
-      [-150, 70],
-      [150, 70],
       [-150, -50],
       [150, -50],
     ],
