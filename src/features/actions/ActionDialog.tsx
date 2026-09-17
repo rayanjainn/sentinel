@@ -6,10 +6,17 @@ import { Button, IconButton } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { Skeleton } from "../../components/Skeleton";
 import { ErrorState } from "../../components/States";
+import { toPayload } from "../../lib/errors";
 import { ActionPreviewBody } from "./ActionPreviewBody";
 import { cancelAction, closeOutcome, confirmAction, retryAction, useActionFlow } from "./flow";
 import { confirmationPhrase, confirmLabel, isExpired, phraseMatches } from "./labels";
 import { OutcomeSummary } from "./OutcomeSummary";
+
+/** Retrying cannot help when the target is gone or the request itself was invalid. */
+function isRetryable(error: unknown): boolean {
+  const code = toPayload(error).code;
+  return !["pathNotFound", "processNotFound", "processChanged", "invalidInput", "unavailable"].includes(code);
+}
 
 function Countdown({ preview }: { preview: ActionPreview }) {
   const [now, setNow] = useState(() => Date.now());
@@ -116,7 +123,7 @@ export function ActionDialog() {
           <ErrorState
             error={state.error}
             subject={state.stage === "prepare" ? "Preparing this action" : "This action"}
-            onRetry={retryAction}
+            onRetry={isRetryable(state.error) ? retryAction : undefined}
           />
         )}
       </div>
