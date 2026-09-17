@@ -3,4 +3,4 @@
 /**
  * Adding a provider = new variant + one `AgentBackend` adapter + descriptor entry.
  */
-export type ProviderId = "ollama" | "anthropic" | "openai" | "gemini";
+export type ProviderId = "ollama" | "ollamaCloud" | "anthropic" | "openai" | "gemini";

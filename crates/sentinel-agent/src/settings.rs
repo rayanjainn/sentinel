@@ -6,25 +6,35 @@ use ts_rs::TS;
 use sentinel_core::model::TimestampMs;
 
 /// OS keychain service name. One entry per provider, account = [`ProviderId::keychain_account`].
-pub const KEYCHAIN_SERVICE: &str = "dev.sentinel.app";
+pub const KEYCHAIN_SERVICE: &str = "com.rayanjain.sentinel";
 
 /// Adding a provider = new variant + one `AgentBackend` adapter + descriptor entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ProviderId {
+    /// Local Ollama daemon; nothing leaves the machine.
     Ollama,
+    /// Ollama-hosted models at ollama.com (API key). Same wire format as local Ollama.
+    OllamaCloud,
     Anthropic,
     Openai,
     Gemini,
 }
 
 impl ProviderId {
-    pub const ALL: [ProviderId; 4] = [Self::Ollama, Self::Anthropic, Self::Openai, Self::Gemini];
+    pub const ALL: [ProviderId; 5] = [
+        Self::Ollama,
+        Self::OllamaCloud,
+        Self::Anthropic,
+        Self::Openai,
+        Self::Gemini,
+    ];
 
     pub fn display_name(self) -> &'static str {
         match self {
             Self::Ollama => "Ollama (local)",
+            Self::OllamaCloud => "Ollama Cloud",
             Self::Anthropic => "Anthropic",
             Self::Openai => "OpenAI",
             Self::Gemini => "Google Gemini",
@@ -34,6 +44,7 @@ impl ProviderId {
     pub fn keychain_account(self) -> &'static str {
         match self {
             Self::Ollama => "ollama",
+            Self::OllamaCloud => "ollama-cloud",
             Self::Anthropic => "anthropic",
             Self::Openai => "openai",
             Self::Gemini => "gemini",
@@ -116,6 +127,8 @@ impl Default for AgentSettings {
 #[ts(export)]
 pub enum KeyStatus {
     Missing,
+    /// No key needed (local Ollama).
+    NotRequired,
     /// Stored, but validation could not reach the provider (offline).
     Unverified {
         message: String,
@@ -135,7 +148,6 @@ pub enum KeyStatus {
 #[ts(export)]
 pub struct ProviderStatus {
     pub id: ProviderId,
-    /// Always `Missing`-free for Ollama (no key).
     pub key: KeyStatus,
     pub ready: bool,
 }
