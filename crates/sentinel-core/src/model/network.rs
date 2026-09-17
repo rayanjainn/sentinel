@@ -203,3 +203,12 @@ pub enum HomeLocationSource {
     TimeZone,
     UserSetting,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct HomeLocationInput {
+    pub lat: f64,
+    pub lon: f64,
+    pub label: String,
+}

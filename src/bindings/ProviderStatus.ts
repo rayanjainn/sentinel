@@ -2,8 +2,4 @@
 import type { KeyStatus } from "./KeyStatus";
 import type { ProviderId } from "./ProviderId";
 
-export type ProviderStatus = { id: ProviderId, 
-/**
- * Always `Missing`-free for Ollama (no key).
- */
-key: KeyStatus, ready: boolean, };
+export type ProviderStatus = { id: ProviderId, key: KeyStatus, ready: boolean, };
