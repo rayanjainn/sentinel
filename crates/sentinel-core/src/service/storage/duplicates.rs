@@ -1,6 +1,7 @@
 //! Duplicate detection over a finished scan: group by length, then a head hash, then a full BLAKE3
 //! hash, each stage in parallel and cancellable.
 
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read};
@@ -188,6 +189,6 @@ pub fn find(
             }
         })
         .collect();
-    groups.sort_by(|a, b| b.reclaimable_bytes.cmp(&a.reclaimable_bytes));
+    groups.sort_by_key(|g| Reverse(g.reclaimable_bytes));
     Ok(groups)
 }

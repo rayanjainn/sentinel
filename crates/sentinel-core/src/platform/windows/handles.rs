@@ -52,10 +52,10 @@ pub(crate) fn open_files(pid: Pid) -> CoreResult<Vec<OpenFile>> {
                 if HANGING_ACCESS_MASKS.contains(&access) {
                     continue;
                 }
-                if let Some(file) = inspect(&process.0, value) {
-                    if tx.send(file).is_err() {
-                        return;
-                    }
+                if let Some(file) = inspect(&process.0, value)
+                    && tx.send(file).is_err()
+                {
+                    return;
                 }
             }
         })

@@ -6,6 +6,7 @@ pub mod scanner;
 pub mod summary;
 pub mod tree;
 
+use std::cmp::Reverse;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -451,7 +452,7 @@ impl StorageService {
                 Some((id, node.size))
             })
             .collect();
-        matches.sort_by(|a, b| b.1.cmp(&a.1));
+        matches.sort_by_key(|m| Reverse(m.1));
         matches.truncate(filter.limit.clamp(1, 10_000) as usize);
         Ok(matches
             .into_iter()

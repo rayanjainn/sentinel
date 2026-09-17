@@ -5,6 +5,7 @@
 //! files count once; symlinks are never followed; other devices are not entered unless requested.
 //! Unreadable or vanishing entries are counted on their directory and never abort the walk.
 
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -104,7 +105,7 @@ impl LiveNode {
                 .iter()
                 .map(|c| c.snapshot(depth - 1, next_id))
                 .collect();
-            nodes.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+            nodes.sort_by_key(|n| Reverse(n.size_bytes));
             nodes
         });
         TreeNode {

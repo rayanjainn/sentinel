@@ -1,5 +1,6 @@
 //! Scan summary: by-type totals, largest files and cleanup suggestions.
 
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -41,10 +42,10 @@ pub fn by_extension(stats: HashMap<Option<String>, (u64, u64)>) -> Vec<Extension
 pub fn largest_files(tree: &ScanTree, limit: usize) -> Vec<FileEntry> {
     let mut files: Vec<(NodeId, u64)> = tree.files().map(|(id, n)| (id, n.size)).collect();
     if files.len() > limit {
-        files.select_nth_unstable_by(limit, |a, b| b.1.cmp(&a.1));
+        files.select_nth_unstable_by_key(limit, |f| Reverse(f.1));
         files.truncate(limit);
     }
-    files.sort_by(|a, b| b.1.cmp(&a.1));
+    files.sort_by_key(|f| Reverse(f.1));
     files
         .into_iter()
         .filter_map(|(id, _)| tree.file_entry(id))
@@ -125,7 +126,7 @@ pub fn suggestions(
                     })
                     .map(|(child, n)| (child, n.size))
                     .collect();
-                children.sort_by(|a, b| b.1.cmp(&a.1));
+                children.sort_by_key(|c| Reverse(c.1));
                 for (child, _) in children.into_iter().take(PER_LOCATION_ITEMS) {
                     covered.insert(child);
                     out.push(suggestion(
@@ -147,7 +148,7 @@ pub fn suggestions(
                     })
                     .map(|(child, n)| (child, n.size))
                     .collect();
-                old.sort_by(|a, b| b.1.cmp(&a.1));
+                old.sort_by_key(|o| Reverse(o.1));
                 for (child, _) in old.into_iter().take(PER_LOCATION_ITEMS) {
                     covered.insert(child);
                     out.push(suggestion(
@@ -181,7 +182,7 @@ pub fn suggestions(
         })
         .map(|(id, n)| (id, n.size))
         .collect();
-    artifacts.sort_by(|a, b| b.1.cmp(&a.1));
+    artifacts.sort_by_key(|a| Reverse(a.1));
     for (id, _) in artifacts.into_iter().take(MAX_ARTIFACTS) {
         let path = tree.path(id);
         out.push(suggestion(
@@ -191,7 +192,7 @@ pub fn suggestions(
             artifact_rationale(&path),
         ));
     }
-    out.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+    out.sort_by_key(|s| Reverse(s.size_bytes));
     out
 }
 

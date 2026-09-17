@@ -3,6 +3,7 @@
 
 pub mod render;
 
+use std::cmp::Reverse;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -82,7 +83,7 @@ impl FirewallService {
         for rule in &mut rules {
             rule.active = installed.contains(&rule.id);
         }
-        rules.sort_by(|a, b| b.created_at_ms.cmp(&a.created_at_ms));
+        rules.sort_by_key(|r| Reverse(r.created_at_ms));
         Ok(rules)
     }
 
