@@ -4,6 +4,7 @@ mod network;
 mod permissions;
 mod process;
 mod resources;
+mod storage;
 
 use std::sync::Arc;
 
@@ -19,11 +20,16 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         process_control: Arc::new(process::WindowsProcessControl),
         permissions: Arc::new(permissions::WindowsPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
+        storage: Arc::new(storage::WindowsStorage::default()),
     }
 }
 
 pub(crate) fn process_provider() -> Box<dyn ProcessProvider> {
     Box::new(ProcTable::new(process::WindowsProcessExtras::default()))
+}
+
+pub(crate) fn is_elevated() -> bool {
+    permissions::is_elevated()
 }
 
 pub(crate) fn system_time_zone() -> Option<String> {

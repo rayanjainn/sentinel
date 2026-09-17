@@ -56,6 +56,18 @@ pub trait StorageProvider: Send + Sync {
     /// (/proc, /sys, /System/Volumes/Data mirror, etc.).
     fn should_skip(&self, path: &Path) -> bool;
     fn cleanup_locations(&self) -> Vec<CleanupLocation>;
+    /// (total, available) bytes of the volume holding `path` (statvfs / GetDiskFreeSpaceEx).
+    fn volume_usage(&self, path: &Path) -> CoreResult<(u64, u64)>;
+    /// Metadata for an entry produced by `read_dir`; platforms whose directory enumeration already
+    /// carries metadata (Windows) avoid a second lookup.
+    fn dir_entry_metadata(&self, entry: &std::fs::DirEntry) -> CoreResult<EntryMetadata> {
+        self.metadata(&entry.path())
+    }
+    /// Devices that belong to the same logical volume as `root_device`, so a scan does not treat
+    /// them as mount crossings (macOS firmlinks join the sealed system and data volumes).
+    fn volume_group(&self, root_device: u64) -> Vec<u64> {
+        vec![root_device]
+    }
 }
 
 pub trait FileOps: Send + Sync {

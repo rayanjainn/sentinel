@@ -3,6 +3,7 @@ mod memory;
 mod network;
 mod permissions;
 mod process;
+mod storage;
 
 use std::sync::Arc;
 
@@ -20,6 +21,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         process_control: Arc::new(process::MacProcessControl),
         permissions: Arc::new(permissions::MacPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
+        storage: Arc::new(storage::MacStorage),
     }
 }
 

@@ -1,6 +1,7 @@
 mod network;
 mod permissions;
 mod process;
+mod storage;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -20,6 +21,7 @@ pub(crate) fn providers(_config: &PlatformConfig) -> Providers {
         process_control: Arc::new(process::LinuxProcessControl),
         permissions: Arc::new(permissions::LinuxPermissions),
         file_ops: Arc::new(crate::platform::fileops::PlatformFileOps),
+        storage: Arc::new(storage::LinuxStorage),
     }
 }
 

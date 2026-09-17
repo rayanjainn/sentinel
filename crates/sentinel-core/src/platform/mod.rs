@@ -13,6 +13,7 @@ mod fileops;
 mod identity;
 mod proc_names;
 mod proc_table;
+mod storage_common;
 mod sys_resources;
 
 #[cfg(unix)]
@@ -51,6 +52,7 @@ pub struct Providers {
     pub process_control: Arc<dyn ProcessControl>,
     pub permissions: Arc<dyn PermissionProbe>,
     pub file_ops: Arc<dyn FileOps>,
+    pub storage: Arc<dyn StorageProvider>,
 }
 
 pub fn current(config: &PlatformConfig) -> Providers {
@@ -61,6 +63,18 @@ pub fn current(config: &PlatformConfig) -> Providers {
 /// sampler).
 pub fn new_process_provider() -> Box<dyn ProcessProvider> {
     os::process_provider()
+}
+
+/// Whether Sentinel runs with administrator / root privileges.
+pub fn is_elevated() -> bool {
+    #[cfg(unix)]
+    {
+        unix::is_root()
+    }
+    #[cfg(windows)]
+    {
+        windows::is_elevated()
+    }
 }
 
 /// IANA name of the system time zone (e.g. "Europe/Paris").
