@@ -56,6 +56,11 @@ main {
   flex: 1;
 }
 
+/* Component classes set display; `hidden` must still win. */
+[hidden] {
+  display: none !important;
+}
+
 main:focus {
   outline: none;
 }

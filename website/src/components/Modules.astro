@@ -1,0 +1,445 @@
+---
+import type { IconName } from "../lib/icons";
+import { href } from "../lib/site";
+import Capture from "./Capture.astro";
+import Icon from "./Icon.astro";
+
+interface Module {
+  id: string;
+  name: string;
+  icon: IconName;
+  summary: string;
+  points: string[];
+  shot: string;
+  doc: string;
+}
+
+const modules: Module[] = [
+  {
+    id: "processes",
+    name: "Process monitor",
+    icon: "tree-structure",
+    summary:
+      "Every process with its command line, owner, CPU and memory, as a live table or a parent-and-child tree.",
+    points: [
+      "Select a process to see its last 60 seconds of CPU and memory, open files and network connections.",
+      "Kill, force kill or change priority. Every action restates the process name and PID before it runs.",
+      "Heavy processes are tinted relative to everything else running, not against a fixed number.",
+    ],
+    shot: "Process monitor in tree view, a browser's helper processes expanded, detail drawer open with the 60-second CPU and memory graph.",
+    doc: "docs/modules/processes/",
+  },
+  {
+    id: "network",
+    name: "Network and ports",
+    icon: "globe-hemisphere-west",
+    summary:
+      "Every listening port and open connection, matched to the process that owns it and placed on a world map.",
+    points: [
+      "Connections are grouped by process, with remote hostnames resolved in the background.",
+      "Locations come from a database stored on your computer, so no lookup service sees who you talk to.",
+      "Block a remote address or a local port with a firewall rule, and remove it later from the same list.",
+    ],
+    shot: "Network view: world map with arcs from your location to remote endpoints, connections grouped by process underneath.",
+    doc: "docs/modules/network/",
+  },
+  {
+    id: "cpu-memory",
+    name: "CPU and memory",
+    icon: "cpu",
+    summary:
+      "Per-core load, memory and swap as rolling graphs, with the processes responsible listed beside them.",
+    points: [
+      "Each core gets its own live graph, with five minutes of history by default.",
+      "Memory is split into used, cached and swap, next to the processes holding the most.",
+      "Temperature and fan speed appear only where the system reports them. Missing sensors are labeled, never shown as zero.",
+    ],
+    shot: "CPU and memory view: per-core graphs across the top, stacked memory area chart and top-memory process list below.",
+    doc: "docs/modules/cpu-memory/",
+  },
+  {
+    id: "storage",
+    name: "Storage treemap",
+    icon: "squares-four",
+    summary:
+      "A zoomable map of your disk that fills in while it scans, with cleanup suggestions you choose from.",
+    points: [
+      "Click into any folder and back out with breadcrumbs, or switch to file types and the 100 largest files.",
+      "Caches, logs, old downloads and build folders are flagged as suggestions. Nothing is removed automatically.",
+      "Deleting always moves items to the Trash or Recycle Bin, so anything can be put back.",
+    ],
+    shot: "Storage treemap zoomed into the home folder mid-scan, breadcrumbs above, hover tooltip showing a folder's path, size and item count.",
+    doc: "docs/modules/storage/",
+  },
+  {
+    id: "agent",
+    name: "AI agent",
+    icon: "chat-teardrop-text",
+    summary:
+      "Ask in plain English. The agent reads live data, then proposes changes you approve one at a time.",
+    points: [
+      "Works with a local Ollama model, Ollama Cloud, Anthropic, OpenAI or Google Gemini.",
+      "API keys are checked when you add them and kept in your operating system's keychain.",
+      "A badge in the chat shows whether your requests stay on this computer or go to a provider.",
+    ],
+    shot: "Agent panel answering 'kill whatever's using port 5432': read-tool results, then one plan card waiting for approval.",
+    doc: "docs/modules/agent/",
+  },
+];
+---
+
+<section id="modules" class="modules-section" aria-labelledby="modules-title">
+  <div class="wrap">
+    <div class="modules-head">
+      <h2 id="modules-title" class="section-title">Five live views of the same machine</h2>
+      <p class="section-lede">
+        Each view reads straight from the operating system and updates as things change. The
+        buttons in them run the same actions the agent can propose, so there's one set of rules
+        for both.
+      </p>
+    </div>
+
+    <div class="modules" data-modules>
+      <div class="module-tabs" role="tablist" aria-label="Modules" aria-orientation="vertical">
+        {
+          modules.map((module, index) => (
+            <button
+              class="module-tab"
+              type="button"
+              role="tab"
+              id={`module-tab-${module.id}`}
+              aria-controls={`module-panel-${module.id}`}
+              aria-selected={index === 0 ? "true" : "false"}
+              tabindex={index === 0 ? 0 : -1}
+            >
+              <span class="module-icon">
+                <Icon name={module.icon} size={20} />
+              </span>
+              <span class="module-name">{module.name}</span>
+              <span class="module-summary">{module.summary}</span>
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="module-stage">
+        {
+          modules.map((module, index) => (
+            <div
+              class="module-panel"
+              role="tabpanel"
+              id={`module-panel-${module.id}`}
+              aria-labelledby={`module-tab-${module.id}`}
+              tabindex="0"
+              hidden={index !== 0}
+            >
+              <h3 class="module-panel-title">{module.name}</h3>
+              <p class="module-panel-summary">{module.summary}</p>
+              <Capture title={module.name} shot={module.shot} />
+              <ul class="module-points">
+                {module.points.map((point) => (
+                  <li>{point}</li>
+                ))}
+              </ul>
+              <a class="arrow-link" href={href(module.doc)}>
+                {module.name} guide
+                <Icon name="arrow-right" size={16} />
+              </a>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<noscript>
+  <style>
+    .module-panel[hidden] {
+      display: block;
+    }
+  </style>
+</noscript>
+
+<script>
+  // WAI-ARIA tabs with automatic activation: arrow keys, Home and End move between modules.
+  const root = document.querySelector<HTMLElement>("[data-modules]");
+  const tabs = Array.from(root?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []);
+
+  function select(tab: HTMLButtonElement, focus: boolean) {
+    for (const other of tabs) {
+      const selected = other === tab;
+      other.setAttribute("aria-selected", String(selected));
+      other.tabIndex = selected ? 0 : -1;
+      const panel = document.getElementById(other.getAttribute("aria-controls") ?? "");
+      if (panel) panel.hidden = !selected;
+    }
+    if (focus) tab.focus();
+  }
+
+  for (const [index, tab] of tabs.entries()) {
+    tab.addEventListener("click", () => select(tab, false));
+    tab.addEventListener("keydown", (event) => {
+      const last = tabs.length - 1;
+      const target =
+        event.key === "ArrowDown" || event.key === "ArrowRight"
+          ? tabs[index === last ? 0 : index + 1]
+          : event.key === "ArrowUp" || event.key === "ArrowLeft"
+            ? tabs[index === 0 ? last : index - 1]
+            : event.key === "Home"
+              ? tabs[0]
+              : event.key === "End"
+                ? tabs[last]
+                : undefined;
+      if (!target) return;
+      event.preventDefault();
+      select(target, true);
+    });
+  }
+</script>
+
+<style>
+  .modules-section {
+    padding-block: clamp(56px, 9vw, 120px);
+    border-top: 1px solid var(--line);
+  }
+
+  .modules-head {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 20px clamp(32px, 6vw, 96px);
+    align-items: end;
+  }
+
+  .modules {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(32px, 5vw, 72px);
+    align-items: start;
+    margin-top: clamp(40px, 6vw, 72px);
+  }
+
+  .module-tabs {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line);
+  }
+
+  .module-tab {
+    position: relative;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 2px 16px;
+    padding: 20px 12px 20px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  /* A signal line runs along the top of the selected row. */
+  .module-tab::before {
+    content: "";
+    position: absolute;
+    inset: -1px 0 auto;
+    height: 1px;
+    background: var(--signal);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.5s var(--ease-out);
+  }
+
+  .module-tab[aria-selected="true"]::before {
+    transform: scaleX(1);
+  }
+
+  .module-tab:focus-visible {
+    outline-offset: -2px;
+    border-radius: var(--radius-control);
+  }
+
+  .module-icon {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-panel);
+    color: var(--fg-muted);
+    transition:
+      color 0.3s var(--ease-out),
+      background-color 0.3s var(--ease-out),
+      border-color 0.3s var(--ease-out);
+  }
+
+  .module-name {
+    color: var(--fg-muted);
+    font-size: 1.0625rem;
+    font-weight: 580;
+    letter-spacing: -0.01em;
+    transition: color 0.3s var(--ease-out);
+  }
+
+  .module-summary {
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  .module-tab:hover .module-name,
+  .module-tab[aria-selected="true"] .module-name {
+    color: var(--fg);
+  }
+
+  .module-tab[aria-selected="true"] .module-icon {
+    border-color: color-mix(in srgb, var(--signal) 40%, transparent);
+    background: var(--signal-wash);
+    color: var(--signal);
+  }
+
+  .module-stage {
+    position: sticky;
+    top: calc(var(--header-height) + 32px);
+  }
+
+  .module-panel:focus-visible {
+    outline-offset: 8px;
+    border-radius: var(--radius-dialog);
+  }
+
+  .module-panel-title,
+  .module-panel-summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .module-points {
+    display: grid;
+    gap: 10px;
+    margin: 28px 0 24px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .module-points li {
+    position: relative;
+    padding-left: 22px;
+    color: var(--fg-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .module-points li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 0.72em;
+    width: 10px;
+    height: 1px;
+    background: var(--signal);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .module-panel:not([hidden]) {
+      animation: panel-in 0.45s var(--ease-out);
+    }
+  }
+
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @media (max-width: 899px) {
+    .modules-head,
+    .modules {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Tabs become a scrollable row of chips; the panel carries the description. */
+    .module-tabs {
+      flex-direction: row;
+      gap: 8px;
+      margin-inline: calc(-1 * var(--gutter));
+      padding: 2px var(--gutter) 6px;
+      overflow-x: auto;
+      border-top: 0;
+      scrollbar-width: none;
+    }
+
+    .module-tab {
+      flex: none;
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px 6px 6px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+    }
+
+    .module-tab::before {
+      display: none;
+    }
+
+    .module-tab[aria-selected="true"] {
+      border-color: color-mix(in srgb, var(--signal) 50%, transparent);
+      background: var(--signal-wash);
+    }
+
+    .module-icon {
+      grid-row: auto;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 50%;
+    }
+
+    .module-icon :global(svg) {
+      width: 17px;
+      height: 17px;
+    }
+
+    .module-name {
+      font-size: 0.9375rem;
+      white-space: nowrap;
+    }
+
+    .module-summary {
+      display: none;
+    }
+
+    .module-stage {
+      position: static;
+    }
+
+    .module-panel-title,
+    .module-panel-summary {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+    }
+
+    .module-panel-title {
+      font-size: 1.25rem;
+      letter-spacing: -0.015em;
+    }
+
+    .module-panel-summary {
+      margin: 8px 0 24px;
+      color: var(--fg-muted);
+    }
+  }
+</style>
