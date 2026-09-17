@@ -55,3 +55,6 @@ pnpm-debug.log*
 
 # Tooling output
 graphify-out/
+
+# Parallel workstream checkouts (git worktree)
+.worktrees/

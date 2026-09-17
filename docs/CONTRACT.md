@@ -141,7 +141,13 @@ All commands are `async` and return `Result<T, ErrorPayload>`. Names are what th
 | `agent_execute_plan` | `planId, decisions: ActionDecision[]` | `Plan` (then a summary turn streams) |
 
 API keys cross the IPC boundary once (in `agent_set_api_key`) and are never returned, logged, or
-written anywhere except the OS keychain (`keyring`, service `dev.sentinel.app`, account per provider).
+written anywhere except the OS keychain (`keyring`, service `com.rayanjain.sentinel`, account per
+provider).
+
+Providers (`ProviderId`): `ollama` (local daemon, no key, "Local — nothing leaves this machine"),
+`ollamaCloud` (ollama.com hosted models, API key, same `/api/chat` wire format as local), `anthropic`
+(Messages API `tools`), `openai` (Chat Completions `tools`; base-URL configurable so OpenAI-compatible
+providers are a descriptor entry away), `gemini` (`generateContent` `functionDeclarations`).
 
 ## Events (push, never poll)
 
@@ -178,7 +184,7 @@ Invariant tests (`crates/sentinel-agent/tests/safety.rs`), run with a scripted m
 3. "Just clean up everything" still yields a `PlanProposed` event and zero commits.
 4. Rejected and omitted actions are never committed.
 5. Expired or reused tokens fail with `ActionTokenInvalid`.
-6. Identical behavior for all four provider ids.
+6. Identical behavior for every `ProviderId`.
 
 ## Decisions made while drafting
 
@@ -194,3 +200,8 @@ Invariant tests (`crates/sentinel-agent/tests/safety.rs`), run with a scripted m
   as inactive until re-applied (one admin prompt).
 - **Windows graceful kill** on a windowless process has no SIGTERM equivalent; the preview states it
   will use TerminateProcess.
+- **Bundle identifier** `com.rayanjain.sentinel` (Tauri warns on identifiers ending in `.app`).
+- **Scaffolding**: every Tauri command starts as `not_wired(...)` returning `Unavailable`, so the UI
+  compiles and renders error states from day one. CI fails while any `not_wired` call remains.
+- **Remote**: no GitHub repo yet. Workflows are written against `rayanjainn/sentinel` and verified
+  once pushed.
