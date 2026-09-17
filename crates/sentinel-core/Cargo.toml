@@ -23,7 +23,7 @@ rayon = "1.12"
 blake3 = { version = "1.8", features = ["pure"] }
 trash = "5.2"
 uuid = { version = "1", features = ["v4"] }
-maxminddb = "0.32"
+maxminddb = { version = "0.32", features = ["mmap"] }
 flate2 = "1"
 dns-lookup = "3.0"
 rusqlite = { version = "0.40", features = ["bundled"], optional = true }

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 
-use maxminddb::{Reader, geoip2};
+use maxminddb::{Mmap, Reader, geoip2};
 use parking_lot::{Mutex, RwLock};
 
 use crate::error::{CoreResult, SentinelError};
@@ -19,7 +19,7 @@ const CACHE_LIMIT: usize = 8192;
 enum State {
     Missing,
     Ready {
-        reader: Box<Reader<Vec<u8>>>,
+        reader: Box<Reader<Mmap>>,
         build_date: Option<String>,
     },
     Downloading {
@@ -103,7 +103,9 @@ impl GeoDb {
 
     /// Loads and validates an mmdb file, making it the active database.
     pub fn install(&self, path: &Path) -> CoreResult<()> {
-        let reader = Reader::open_readfile(path).map_err(|err| SentinelError::Io {
+        // SAFETY: the mapped file is owned by Sentinel and only ever replaced by rename, which
+        // leaves existing mappings pointing at the previous, unmodified file.
+        let reader = unsafe { Reader::open_mmap(path) }.map_err(|err| SentinelError::Io {
             detail: format!("invalid geolocation database: {err}"),
             path: Some(path.to_string_lossy().into_owned()),
         })?;
@@ -136,7 +138,7 @@ impl GeoDb {
     }
 }
 
-fn locate(reader: &Reader<Vec<u8>>, ip: IpAddr) -> Option<GeoLocation> {
+fn locate(reader: &Reader<Mmap>, ip: IpAddr) -> Option<GeoLocation> {
     let result = reader.lookup(ip).ok()?;
     let city: geoip2::City = result.decode().ok()??;
     let lat = city.location.latitude?;
