@@ -1,4 +1,4 @@
-# Deploys the Astro site in website/ to GitHub Pages: https://rayanjainn.github.io/sentinel/
+# Deploys the Astro site in website/ to GitHub Pages: https://sentinel.raycode.tech/
 #
 # Runs on pushes to main that change the site (or the design tokens it imports from the app)
 # and on demand from the Actions tab. It is independent of app releases: the download section
@@ -54,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # `site` and `base` in website/astro.config.mjs point at rayanjainn.github.io/sentinel.
+      # `site` and `base` in website/astro.config.mjs point at the sentinel.raycode.tech custom domain.
       - name: Build
         run: pnpm build
 

@@ -8,9 +8,10 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const appStyles = fileURLToPath(new URL("../src/styles", import.meta.url));
 
 export default defineConfig({
-  // Project Pages site: https://rayanjainn.github.io/sentinel/
-  site: "https://rayanjainn.github.io",
-  base: "/sentinel",
+  // Served from the custom domain root (GitHub Pages redirects rayanjainn.github.io/sentinel/ here),
+  // so assets must not be prefixed with /sentinel.
+  site: "https://sentinel.raycode.tech",
+  base: "/",
   trailingSlash: "always",
   output: "static",
   // Astro 7 defaults to "jsx" whitespace handling, which drops spaces between inline elements.
