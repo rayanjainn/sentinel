@@ -1,0 +1,204 @@
+---
+// The isometric strip-chart recorder, built by website/figures/build.mjs.
+import figure from "../figures/sentinel-recorder.html?raw";
+import { href } from "../lib/site";
+import Icon from "./Icon.astro";
+
+const base = href("figures/");
+---
+
+<section id="sampler" class="section sampler" aria-labelledby="sampler-title">
+  <div class="wrap">
+    <div class="section-head" data-reveal>
+      <span class="eyebrow">How it stays light</span>
+      <h2 id="sampler-title" class="section-title">It only samples what you're looking at.</h2>
+      <p class="section-lede">
+        Picture Sentinel's sampler as a chart recorder with one pen per stream. The view on your screen
+        decides which pens touch the paper. Everything else lifts off and waits.
+      </p>
+    </div>
+    <div class="sampler-grid">
+      <div class="fig-host" data-reveal="zoom"><Fragment set:html={figure} /></div>
+      <ol class="sampler-steps" data-cycle="3400" data-reveal="right">
+        <li data-cycle-item><b>Four pens, four streams</b><span>CPU, memory, network and disk each write in their own lane.</span></li>
+        <li data-cycle-item><b>The knob is the view on screen</b><span>Switch to Network and only the network pen keeps writing. The rest pause.</span></li>
+        <li data-cycle-item><b>One sample a second</b><span>The default refresh is 1 second. A 500 ms mode in Settings doubles the paper speed for close watching.</span></li>
+        <li data-cycle-item><b>Nothing is guessed</b><span>Where a sensor can't be read, Sentinel says "not available" with the reason, never a made-up zero.</span></li>
+      </ol>
+    </div>
+    <p class="sampler-more" data-reveal>
+      <a class="arrow-link" href={href("docs/getting-started/")}>Tour every view <Icon name="arrow-right" size={16} /></a>
+    </p>
+  </div>
+</section>
+
+<link rel="stylesheet" href={`${base}iso.css`} />
+<link rel="stylesheet" href={`${base}sentinel-recorder.css`} />
+<script is:inline defer src={`${base}iso-kit.js`}></script>
+<script is:inline defer src={`${base}sentinel-recorder.js`}></script>
+
+<style>
+  .sampler-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 48px);
+    align-items: center;
+  }
+
+  .fig-host {
+    position: relative;
+  }
+
+  .fig-host::before {
+    position: absolute;
+    inset: 10% 8%;
+    z-index: -1;
+    background: radial-gradient(closest-side, var(--aurora-2), transparent);
+    content: "";
+    filter: blur(30px);
+  }
+
+  .fig-host :global(.iso-figure) {
+    margin: 0;
+  }
+
+  .fig-host :global(.iso-plate) {
+    overflow: hidden;
+    border-radius: 20px;
+    box-shadow:
+      0 0 0 1px var(--glass-line),
+      var(--shadow-raised);
+  }
+
+  .fig-host :global(.iso-legend) {
+    margin-top: 16px;
+  }
+
+  /* Figure tokens: the site's graphite and signal green. */
+  .fig-host :global(.iso) {
+    --anatomy-page: transparent;
+    --anatomy-card: #0f141b;
+    --anatomy-text: #97a1ae;
+    --anatomy-strong: #e3e8ee;
+    --anatomy-muted: #5d6774;
+    --anatomy-paper: #0f141b;
+    --anatomy-face: #161d26;
+    --anatomy-top: #18202a;
+    --anatomy-shade-0: #0b0f14;
+    --anatomy-shade-1: #0e1319;
+    --anatomy-shade-2: #11171e;
+    --anatomy-shade-3: #141b23;
+    --anatomy-lit-top: #1f2a35;
+    --anatomy-lit-shade: #18212b;
+    --anatomy-hi: #d8e2ec;
+    --anatomy-mid: #66727f;
+    --anatomy-lo: #3a4450;
+    --anatomy-faint: #252e38;
+    --anatomy-lit: #74d3ae;
+    --anatomy-halo: #020406;
+    --anatomy-halo-opacity: 0.9;
+    --anatomy-dot: #e3e8ee;
+    --fig-s0: #74d3ae;
+    --fig-s1: #5ad1ff;
+    --fig-s2: #ffc66d;
+    --fig-s3: #ff7ab6;
+  }
+
+  :global([data-theme="light"]) .fig-host :global(.iso) {
+    --anatomy-card: #fcfdfe;
+    --anatomy-text: #525d6a;
+    --anatomy-strong: #121820;
+    --anatomy-muted: #87919d;
+    --anatomy-paper: #fcfdfe;
+    --anatomy-face: #ffffff;
+    --anatomy-top: #ffffff;
+    --anatomy-shade-0: #d9e0e7;
+    --anatomy-shade-1: #e3e8ee;
+    --anatomy-shade-2: #ebeff3;
+    --anatomy-shade-3: #f3f6f8;
+    --anatomy-lit-top: #ffffff;
+    --anatomy-lit-shade: #eef4f1;
+    --anatomy-hi: #18212b;
+    --anatomy-mid: #85909c;
+    --anatomy-lo: #b3bcc6;
+    --anatomy-faint: #d6dde4;
+    --anatomy-lit: #16895f;
+    --anatomy-halo: #6f7f8f;
+    --anatomy-halo-opacity: 0.3;
+    --anatomy-dot: #2a3540;
+    --fig-s0: #16895f;
+    --fig-s1: #0a8fc7;
+    --fig-s2: #b97a12;
+    --fig-s3: #d43f86;
+  }
+
+  .sampler-steps {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: s;
+  }
+
+  .sampler-steps li {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 2px 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--glass);
+    transition:
+      transform 0.5s var(--ease-out),
+      border-color 0.5s;
+  }
+
+  .sampler-steps li::before {
+    display: grid;
+    grid-row: span 2;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: var(--grad-signal);
+    color: #04140e;
+    content: counter(s);
+    counter-increment: s;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .sampler-steps li:global(.is-active) {
+    border-color: color-mix(in srgb, var(--signal) 50%, transparent);
+    transform: translateX(6px);
+  }
+
+  .sampler-steps span {
+    color: var(--fg-muted);
+    font-size: 0.92rem;
+  }
+
+  .sampler-more {
+    margin-top: 28px;
+    text-align: center;
+  }
+
+  @media (max-width: 1023px) {
+    .sampler-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .fig-host :global(.iso-plate) {
+      padding: 44px 0;
+    }
+
+    .fig-host :global(.iso-stage svg) {
+      width: 122%;
+      max-width: none;
+      margin-left: -11%;
+    }
+  }
+</style>

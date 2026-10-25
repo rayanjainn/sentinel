@@ -19,11 +19,12 @@ const { section = "home" } = Astro.props;
 
     <nav class="header-nav" aria-label="Primary">
       <a class="nav-link nav-optional" href={href("#modules")}>Features</a>
+      <a class="nav-link nav-optional" href={href("#sampler")}>How it works</a>
       <a class="nav-link nav-optional" href={href("#safety")}>Safety</a>
       <a class="nav-link" href={href("docs/")} aria-current={section === "docs" ? "page" : undefined}
         >Docs</a
       >
-      <a class="nav-link nav-download" href={href("#download")}>Download</a>
+      <a class="nav-link nav-download" href={href("download/")}>Download</a>
     </nav>
 
     <div class="header-actions">

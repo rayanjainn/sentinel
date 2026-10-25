@@ -1,6 +1,6 @@
 // Explicit .ts extensions let Node's built-in test runner load this module directly.
 import type { Os } from "./platform.ts";
-import { LATEST_RELEASE_API, LATEST_RELEASE_URL } from "./site.ts";
+import { LATEST_RELEASE_API, LATEST_RELEASE_URL, RELEASES_API } from "./site.ts";
 
 export type AssetKey =
   | "macos-arm64"
@@ -154,6 +154,77 @@ export async function lookupLatestRelease(fetchImpl: typeof fetch = fetch): Prom
   const found: ReleaseLookup = { status: "found", release };
   writeCache(found);
   return found;
+}
+
+/** One entry in the list of every release, for the downloads page. */
+export interface ReleaseEntry extends LatestRelease {
+  name: string;
+  prerelease: boolean;
+}
+
+export type HistoryLookup =
+  | { status: "found"; releases: ReleaseEntry[] }
+  | { status: "none" }
+  | { status: "error"; reason: string };
+
+/** Turns GitHub's list of releases into entries, newest first, skipping drafts and anything unreadable. */
+export function parseReleaseList(data: unknown): ReleaseEntry[] {
+  if (!Array.isArray(data)) return [];
+  const entries: ReleaseEntry[] = [];
+  for (const item of data) {
+    if (!isRecord(item) || item.draft === true) continue;
+    const release = parseRelease(item);
+    if (!release) continue;
+    entries.push({
+      ...release,
+      name: typeof item.name === "string" && item.name ? item.name : `Sentinel ${release.version}`,
+      prerelease: item.prerelease === true,
+    });
+  }
+  return entries.sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
+}
+
+const HISTORY_CACHE_KEY = "sentinel-releases-v1";
+
+export async function lookupReleases(fetchImpl: typeof fetch = fetch): Promise<HistoryLookup> {
+  try {
+    const raw = sessionStorage.getItem(HISTORY_CACHE_KEY);
+    if (raw) {
+      const cached = JSON.parse(raw) as { savedAt: number; value: HistoryLookup };
+      if (Date.now() - cached.savedAt < CACHE_TTL_MS) return cached.value;
+    }
+  } catch {
+    // No storage or a bad entry: ask GitHub.
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(RELEASES_API, {
+      headers: { Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    return { status: "error", reason: "GitHub could not be reached" };
+  }
+  if (response.status === 403 || response.status === 429) {
+    return { status: "error", reason: "your network has hit GitHub's hourly API limit" };
+  }
+  if (!response.ok) return { status: "error", reason: `GitHub answered with status ${response.status}` };
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { status: "error", reason: "GitHub sent a response the page couldn't read" };
+  }
+  const releases = parseReleaseList(body);
+  const value: HistoryLookup = releases.length ? { status: "found", releases } : { status: "none" };
+  try {
+    sessionStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), value }));
+  } catch {
+    // Storage full or blocked: the next visit simply asks GitHub again.
+  }
+  return value;
 }
 
 export function formatBytes(bytes: number): string {

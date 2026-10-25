@@ -1,0 +1,5 @@
+.fig-trace{stroke-width:1.15}
+.fig-trace[data-stream="0"]{stroke:var(--fig-s0,#74d3ae)}
+.fig-trace[data-stream="1"]{stroke:var(--fig-s1,#7aa7ff)}
+.fig-trace[data-stream="2"]{stroke:var(--fig-s2,#e3a857)}
+.fig-trace[data-stream="3"]{stroke:var(--fig-s3,#e26ab0)}

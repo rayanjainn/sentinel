@@ -18,7 +18,7 @@ const steps = [
 ];
 ---
 
-<section id="safety" class="safety" aria-labelledby="safety-title">
+<section id="safety" class="safety" aria-labelledby="safety-title" data-safety>
   <div class="wrap safety-grid">
     <div class="safety-copy">
       <h2 id="safety-title" class="section-title">The agent proposes. You decide what runs.</h2>
@@ -27,10 +27,10 @@ const steps = [
         setting that lets it act on its own.
       </p>
 
-      <ol class="safety-steps">
+      <ol class="safety-steps" data-cycle="3000">
         {
           steps.map((step, index) => (
-            <li>
+            <li data-cycle-item>
               <span class="step-index mono" aria-hidden="true">
                 {index + 1}
               </span>
@@ -65,10 +65,10 @@ const steps = [
         </p>
 
         <ul class="plan-cards">
-          <li class="plan-card" data-state="approved">
+          <li class="plan-card" data-state="approved" data-card="0">
             <div class="plan-card-head">
               <span class="plan-card-action"><Icon name="trash" size={16} />Move to Trash</span>
-              <span class="plan-card-state"><Icon name="check" size={14} />Approved</span>
+              <span class="plan-card-state"><Icon name="check" size={14} /><span data-card-label>Approved</span></span>
             </div>
             <p class="plan-card-path mono">~/Library/Caches/old-app</p>
             <p class="plan-card-impact"><span class="mono">2.3 GB</span>, last modified 47 days ago</p>
@@ -78,10 +78,10 @@ const steps = [
               <span class="plan-control"><Icon name="pencil-simple" size={14} />Edit</span>
             </div>
           </li>
-          <li class="plan-card" data-state="pending">
+          <li class="plan-card" data-state="pending" data-card="1">
             <div class="plan-card-head">
               <span class="plan-card-action"><Icon name="trash" size={16} />Move to Trash</span>
-              <span class="plan-card-state">Waiting for you</span>
+              <span class="plan-card-state"><span data-card-label>Waiting for you</span></span>
             </div>
             <p class="plan-card-path mono">~/Projects/prototype/node_modules</p>
             <p class="plan-card-impact"><span class="mono">1.1 GB</span>, last opened 83 days ago</p>
@@ -94,8 +94,8 @@ const steps = [
         </ul>
 
         <div class="plan-run" aria-hidden="true">
-          <span class="plan-run-button">Run 1 approved action</span>
-          <span class="plan-run-note">Nothing runs until you choose.</span>
+          <span class="plan-run-button" data-run>Run 1 approved action</span>
+          <span class="plan-run-note" data-run-note>Nothing runs until you choose.</span>
         </div>
       </div>
 
@@ -106,6 +106,39 @@ const steps = [
     </figure>
   </div>
 </section>
+
+<script>
+  import { loop, still } from "../scripts/motion";
+
+  // The plan plays itself: the first card is approved, the second stays waiting,
+  // the approved one runs and ends as "Moved to Trash", then the plan resets.
+  const root = document.querySelector<HTMLElement>("[data-safety]");
+  const figure = root?.querySelector<HTMLElement>(".plan");
+  if (root && figure && !still()) {
+    const card = (i: number) => figure.querySelector<HTMLElement>(`[data-card="${i}"]`);
+    const label = (i: number) => card(i)?.querySelector<HTMLElement>("[data-card-label]");
+    const run = figure.querySelector<HTMLElement>("[data-run]");
+    const note = figure.querySelector<HTMLElement>("[data-run-note]");
+    const states: [string, string, string, string, string][] = [
+      ["pending", "Waiting for you", "pending", "Run 0 approved actions", "Nothing runs until you choose."],
+      ["approved", "Approved", "pending", "Run 1 approved action", "Nothing runs until you choose."],
+      ["approved", "Approved", "rejected", "Run 1 approved action", "You rejected the second card."],
+      ["running", "Checking it's unchanged…", "rejected", "Running 1 action…", "Re-checked against the live system."],
+      ["done", "Moved to Trash", "rejected", "Done · 2.3 GB freed", "Logged on the Activity screen."],
+    ];
+    loop(figure, 2200, (step) => {
+      const [s0, l0, s1, runText, noteText] = states[step % states.length]!;
+      card(0)?.setAttribute("data-state", s0);
+      card(1)?.setAttribute("data-state", s1);
+      const first = label(0);
+      if (first) first.textContent = l0;
+      const second = label(1);
+      if (second) second.textContent = s1 === "rejected" ? "Rejected" : "Waiting for you";
+      if (run) run.textContent = runText;
+      if (note) note.textContent = noteText;
+    });
+  }
+</script>
 
 <style>
   .safety {
@@ -136,9 +169,21 @@ const steps = [
   }
 
   .step-index {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
     color: var(--signal);
     font-size: 0.875rem;
-    line-height: 1.7;
+    transition:
+      background 0.4s,
+      color 0.4s;
+  }
+
+  .plan-card:not([data-state="approved"], [data-state="done"]) .plan-card-state :global(svg) {
+    display: none;
   }
 
   .safety-steps h3 {
@@ -272,8 +317,49 @@ const steps = [
     font-size: 0.75rem;
   }
 
-  .plan-card[data-state="approved"] .plan-card-state {
+  .plan-card[data-state="approved"] .plan-card-state,
+  .plan-card[data-state="done"] .plan-card-state {
     color: var(--signal);
+  }
+
+  .plan-card {
+    transition:
+      border-color 0.5s var(--ease-out),
+      opacity 0.5s,
+      transform 0.5s var(--ease-out);
+  }
+
+  .plan-card[data-state="running"] {
+    border-color: color-mix(in srgb, var(--cyan) 60%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .plan-card[data-state="running"] .plan-card-state {
+    color: var(--cyan);
+  }
+
+  .plan-card[data-state="done"] {
+    border-color: color-mix(in srgb, var(--signal) 70%, transparent);
+    background: color-mix(in srgb, var(--signal) 8%, transparent);
+  }
+
+  .plan-card[data-state="rejected"] {
+    opacity: 0.55;
+  }
+
+  .plan-card[data-state="rejected"] .plan-card-state {
+    color: var(--danger);
+  }
+
+  .safety-steps li {
+    transition:
+      transform 0.5s var(--ease-out),
+      opacity 0.5s;
+  }
+
+  .safety-steps li:global(.is-active) .step-index {
+    background: var(--grad-signal);
+    color: #04140e;
   }
 
   .plan-card-path {

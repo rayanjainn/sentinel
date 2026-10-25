@@ -1,0 +1,382 @@
+---
+// An animated illustration of the app window: sidebar, four live tiles,
+// per-core load and a process list whose numbers keep moving. Drawn in HTML
+// and CSS, not a screenshot, and labelled as an illustration.
+const cores = Array.from({ length: 12 }, (_, i) => i);
+// A sparkline that repeats every 100 units, drawn twice so it can scroll forever.
+function spark(levels: number[]): string {
+  const step = 100 / levels.length;
+  const half = levels.map((y, i) => `${(i * step).toFixed(1)} ${y}`);
+  const pts = [...half, ...levels.map((y, i) => `${(100 + i * step).toFixed(1)} ${y}`), `200 ${levels[0]}`];
+  return `M${pts.join(" L")}`;
+}
+const sparks = [
+  spark([20, 18, 22, 12, 15, 8, 14, 10, 16, 9]),
+  spark([14, 14, 13, 13, 12, 12, 13, 12, 11, 11]),
+  spark([24, 24, 6, 22, 24, 24, 18, 24, 10, 24]),
+  spark([18, 18, 17, 18, 16, 18, 18, 17, 18, 16]),
+];
+const rows = [
+  { name: "Safari", pid: 812, user: "you" },
+  { name: "node", pid: 4471, user: "you" },
+  { name: "postgres", pid: 309, user: "_postgres" },
+  { name: "Slack Helper", pid: 2290, user: "you" },
+  { name: "kernel_task", pid: 0, user: "root" },
+];
+---
+
+<figure class="monitor glass" aria-label="Illustration of the Sentinel window showing live CPU, memory, network and disk tiles, per-core load and a process list">
+  <div class="mon-bar" aria-hidden="true">
+    <span class="dots"><i></i><i></i><i></i></span>
+    <span class="mon-title">Sentinel</span>
+    <span class="mon-live"><span class="live-dot"></span>live · 1 s</span>
+  </div>
+  <div class="mon-body" aria-hidden="true">
+    <nav class="mon-side">
+      <span class="is-on">Processes</span><span>Network</span><span>CPU and memory</span><span>Storage</span><span>Activity</span>
+    </nav>
+    <div class="mon-main">
+      <div class="tiles">
+        <div class="tile"><span class="k">CPU</span><span class="v mono" data-mon="cpu">23%</span><svg viewBox="0 0 100 28" preserveAspectRatio="none"><path class="spark s1" d={sparks[0]} /></svg></div>
+        <div class="tile"><span class="k">Memory</span><span class="v mono" data-mon="mem">11.4 GB</span><svg viewBox="0 0 100 28" preserveAspectRatio="none"><path class="spark s2" d={sparks[1]} /></svg></div>
+        <div class="tile"><span class="k">Network</span><span class="v mono" data-mon="net">3.2 MB/s</span><svg viewBox="0 0 100 28" preserveAspectRatio="none"><path class="spark s3" d={sparks[2]} /></svg></div>
+        <div class="tile"><span class="k">Disk</span><span class="v mono" data-mon="disk">412 GB free</span><svg viewBox="0 0 100 28" preserveAspectRatio="none"><path class="spark s4" d={sparks[3]} /></svg></div>
+      </div>
+      <div class="cores">
+        {cores.map((i) => <span class="core" style={`--i:${i}`}><i /></span>)}
+      </div>
+      <div class="procs">
+        <div class="proc head"><span>Process</span><span>PID</span><span>User</span><span>CPU</span></div>
+        {
+          rows.map((row, i) => (
+            <div class="proc" style={`--i:${i}`}>
+              <span>{row.name}</span>
+              <span class="mono">{row.pid}</span>
+              <span>{row.user}</span>
+              <span class="cpu">
+                <i data-proc-bar />
+                <b class="mono" data-proc-val>
+                  0.0
+                </b>
+              </span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+  <figcaption>Illustration. The real window shows your own processes and numbers.</figcaption>
+</figure>
+
+<script>
+  import { loop, still } from "../scripts/motion";
+
+  const root = document.querySelector<HTMLElement>(".monitor");
+  if (root) {
+    const bars = Array.from(root.querySelectorAll<HTMLElement>("[data-proc-bar]"));
+    const vals = Array.from(root.querySelectorAll<HTMLElement>("[data-proc-val]"));
+    const field = (name: string) => root.querySelector<HTMLElement>(`[data-mon="${name}"]`);
+    const base = [18, 9, 4, 6, 2];
+    let t = 0;
+    const tick = () => {
+      t += 1;
+      const wobble = (i: number) => Math.max(0.1, base[i]! * (0.6 + 0.8 * Math.abs(Math.sin(t * 0.7 + i * 1.7))));
+      bars.forEach((bar, i) => {
+        const v = wobble(i);
+        bar.style.width = `${Math.min(100, v * 3.2)}%`;
+        const label = vals[i];
+        if (label) label.textContent = v.toFixed(1);
+      });
+      const cpu = field("cpu");
+      if (cpu) cpu.textContent = `${Math.round(18 + 14 * Math.abs(Math.sin(t * 0.5)))}%`;
+      const mem = field("mem");
+      if (mem) mem.textContent = `${(11.2 + 0.4 * Math.sin(t * 0.2)).toFixed(1)} GB`;
+      const net = field("net");
+      if (net) net.textContent = `${(0.4 + 4 * Math.max(0, Math.sin(t * 0.9)) ** 3).toFixed(1)} MB/s`;
+    };
+    tick();
+    if (!still()) loop(root, 1000, tick);
+  }
+</script>
+
+<style>
+  .monitor {
+    margin: 0;
+    overflow: hidden;
+    border-radius: 16px;
+  }
+
+  .mon-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 38px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.8125rem;
+  }
+
+  .dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff5f57;
+  }
+
+  .dots i:nth-child(2) {
+    background: #febc2e;
+  }
+
+  .dots i:nth-child(3) {
+    background: #28c840;
+  }
+
+  .mon-title {
+    color: var(--fg-muted);
+    font-weight: 600;
+  }
+
+  .mon-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    color: var(--fg-subtle);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .mon-body {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    min-height: 380px;
+  }
+
+  .mon-side {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 10px;
+    border-right: 1px solid var(--line);
+    font-size: 0.8125rem;
+    color: var(--fg-muted);
+  }
+
+  .mon-side span {
+    padding: 7px 10px;
+    border-radius: 6px;
+  }
+
+  .mon-side .is-on {
+    background: color-mix(in srgb, var(--signal) 14%, transparent);
+    color: var(--fg);
+  }
+
+  .mon-main {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .tile {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
+    overflow: hidden;
+  }
+
+  .tile .k {
+    color: var(--fg-subtle);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .tile .v {
+    font-size: 1rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tile svg {
+    width: 100%;
+    height: 28px;
+    margin-top: 4px;
+    overflow: visible;
+  }
+
+  .spark {
+    fill: none;
+    stroke-width: 1.6;
+    vector-effect: non-scaling-stroke;
+    animation: spark-scroll 6s linear infinite;
+  }
+
+  .s1 {
+    stroke: var(--signal);
+  }
+
+  .s2 {
+    stroke: var(--cyan);
+  }
+
+  .s3 {
+    stroke: var(--violet);
+    animation-duration: 4s;
+  }
+
+  .s4 {
+    stroke: var(--amber);
+    animation-duration: 9s;
+  }
+
+  @keyframes spark-scroll {
+    to {
+      transform: translateX(-100px);
+    }
+  }
+
+  .cores {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 6px;
+    height: 70px;
+  }
+
+  .core {
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--panel) 60%, transparent);
+    border: 1px solid var(--line);
+  }
+
+  .core i {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 30%;
+    background: linear-gradient(0deg, var(--signal), var(--cyan));
+    opacity: 0.85;
+    animation: core-load calc(2.2s + var(--i) * 0.37s) ease-in-out infinite alternate;
+    animation-delay: calc(var(--i) * -0.6s);
+  }
+
+  .core:nth-child(3n) i {
+    background: linear-gradient(0deg, var(--cyan), var(--violet));
+  }
+
+  .core:nth-child(5n) i {
+    background: linear-gradient(0deg, var(--amber), var(--pink));
+  }
+
+  @keyframes core-load {
+    0% {
+      height: 12%;
+    }
+
+    40% {
+      height: 64%;
+    }
+
+    70% {
+      height: 28%;
+    }
+
+    100% {
+      height: 86%;
+    }
+  }
+
+  .procs {
+    display: grid;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.8125rem;
+  }
+
+  .proc {
+    display: grid;
+    grid-template-columns: 1.6fr 0.7fr 1fr 1.4fr;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .proc.head {
+    border-top: 0;
+    color: var(--fg-subtle);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .cpu {
+    display: grid;
+    grid-template-columns: 1fr 34px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .cpu i {
+    display: block;
+    height: 6px;
+    width: 10%;
+    border-radius: 3px;
+    background: var(--grad-signal);
+    transition: width 0.9s var(--ease-out);
+  }
+
+  .cpu b {
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  figcaption {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+    color: var(--fg-subtle);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 767px) {
+    .mon-body {
+      grid-template-columns: 1fr;
+    }
+
+    .mon-side {
+      display: none;
+    }
+
+    .tiles {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cores {
+      grid-template-columns: repeat(6, 1fr);
+      height: 90px;
+    }
+
+    .core:nth-child(n + 7) {
+      display: none;
+    }
+  }
+</style>

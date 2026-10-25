@@ -1,43 +1,62 @@
 ---
 import { href } from "../lib/site";
-import Capture from "./Capture.astro";
 import Icon from "./Icon.astro";
+import LiveMonitor from "./LiveMonitor.astro";
 ---
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <h1 id="hero-title" class="hero-title">
-        See everything running on your machine and control it in plain English.
+      <span class="pill" data-reveal><span class="live-dot"></span>Free desktop app for macOS, Windows and Linux</span>
+      <h1 id="hero-title" class="hero-title" data-reveal style="--d:80ms">
+        See everything running on your machine and
+        <span class="grad-text">control it in plain English.</span>
       </h1>
-      <p class="hero-lede">
-        Sentinel is a desktop app for macOS, Windows and Linux. It shows live processes, ports and
-        connections, CPU, memory and disk usage, and lets you act on any of them. Ask its agent to
-        free a port or clear space, and it checks the real state of your system, then lays out each
-        step for you to approve before anything runs.
+      <p class="hero-lede" data-reveal style="--d:160ms">
+        Sentinel is a desktop app. It shows live processes, ports and connections, CPU, memory and
+        disk usage, and lets you act on any of them. Ask its agent to free a port or clear space:
+        it checks the real state of your system, then lays out each step for you to approve before
+        anything runs.
       </p>
-      <div class="hero-actions">
-        <a class="btn btn-primary btn-large" href={href("#download")}>
+      <div class="hero-actions" data-reveal style="--d:240ms">
+        <a class="btn btn-primary btn-large" href={href("download/")}>
           <Icon name="download-simple" />
           <span data-hero-download-label>Download Sentinel</span>
         </a>
-        <a class="btn btn-secondary btn-large" href={href("docs/getting-started/")}>
-          Read the guide
-        </a>
+        <a class="btn btn-secondary btn-large" href={href("docs/getting-started/")}>Read the guide</a>
       </div>
-      <p class="hero-platforms">
-        For macOS 11 or later on Apple Silicon and Intel, Windows 10 and 11, and 64-bit Linux.
-      </p>
+      <ul class="hero-facts" data-stagger>
+        <li><Icon name="check" size={16} />No account, no sign-up</li>
+        <li><Icon name="check" size={16} />Reads straight from your OS</li>
+        <li><Icon name="check" size={16} />Nothing runs without your OK</li>
+      </ul>
     </div>
-
-    <div class="hero-shot">
-      <Capture
-        title="Sentinel"
-        shot="Main window in the dark theme: Network view with the world map of live connections, and the agent panel docked on the right showing a plan card. Captured at 1440 x 920."
-      />
+    <div class="hero-shot" data-reveal="right" style="--d:200ms">
+      <LiveMonitor />
     </div>
   </div>
 </section>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    {
+      [0, 1].map(() => (
+        <>
+          <span>Processes</span>
+          <span>Ports and connections</span>
+          <span>World map</span>
+          <span>Per-core CPU</span>
+          <span>Memory and swap</span>
+          <span>Storage treemap</span>
+          <span>Firewall rules</span>
+          <span>Activity log</span>
+          <span>Local or cloud AI</span>
+          <span>macOS · Windows · Linux</span>
+        </>
+      ))
+    }
+  </div>
+</div>
 
 <script>
   import { detectPlatform, OS_LABEL } from "../lib/platform";
@@ -54,31 +73,27 @@ import Icon from "./Icon.astro";
 
 <style>
   .hero {
-    overflow-x: clip;
-    padding-block: clamp(48px, 9vw, 112px) clamp(56px, 8vw, 104px);
+    padding-block: clamp(56px, 9vw, 120px) clamp(56px, 8vw, 96px);
   }
 
   .hero-grid {
     display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    row-gap: clamp(40px, 6vw, 72px);
-  }
-
-  .hero-copy {
-    grid-column: 1 / span 8;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: clamp(40px, 5vw, 72px);
+    align-items: center;
   }
 
   .hero-title {
-    max-width: 19ch;
-    font-size: clamp(2.375rem, 1.1rem + 4.4vw, 4.5rem);
-    font-weight: 620;
-    line-height: 1.02;
+    margin-top: 22px;
+    font-size: clamp(2.375rem, 1.1rem + 3.6vw, 4.1rem);
+    font-weight: 650;
+    line-height: 1.03;
     letter-spacing: -0.042em;
   }
 
   .hero-lede {
     max-width: 54ch;
-    margin-top: 28px;
+    margin-top: 24px;
     color: var(--fg-muted);
     font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
     line-height: 1.6;
@@ -88,71 +103,57 @@ import Icon from "./Icon.astro";
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 36px;
+    margin-top: 32px;
   }
 
-  .hero-platforms {
-    margin-top: 18px;
-    color: var(--fg-subtle);
-    font-size: 0.875rem;
+  .hero-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
   }
 
-  /* The capture starts a third of the way in and runs off the right edge of the viewport. */
+  .hero-facts li {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .hero-facts :global(svg) {
+    color: var(--signal);
+  }
+
   .hero-shot {
-    grid-column: 4 / -1;
-    margin-right: calc(-1 * var(--gutter) - max(0px, (100vw - var(--max-width) - var(--gutter) * 2) / 2) - 96px);
+    perspective: 1600px;
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .hero-title,
-    .hero-lede,
-    .hero-actions,
-    .hero-platforms,
-    .hero-shot {
-      animation: hero-rise 0.9s var(--ease-out) both;
-    }
-
-    .hero-lede {
-      animation-delay: 0.08s;
-    }
-
-    .hero-actions {
-      animation-delay: 0.16s;
-    }
-
-    .hero-platforms {
-      animation-delay: 0.22s;
-    }
-
-    .hero-shot {
-      animation-duration: 1.2s;
-      animation-delay: 0.3s;
-    }
+  .hero-shot :global(.monitor) {
+    transform: rotateY(-8deg) rotateX(3deg);
+    animation: hero-float 10s ease-in-out infinite;
   }
 
-  @keyframes hero-rise {
-    from {
-      opacity: 0;
-      transform: translateY(18px);
+  @keyframes hero-float {
+    50% {
+      transform: rotateY(-3deg) rotateX(1deg) translateY(-10px);
     }
   }
 
   @media (max-width: 1023px) {
-    .hero-copy {
-      grid-column: 1 / -1;
+    .hero-grid {
+      grid-template-columns: 1fr;
     }
 
-    .hero-shot {
-      grid-column: 2 / -1;
+    .hero-shot :global(.monitor) {
+      transform: none;
+      animation: none;
     }
   }
 
   @media (max-width: 767px) {
-    .hero-shot {
-      grid-column: 1 / -1;
-      margin-right: 0;
-    }
-
     .hero-actions .btn {
       flex: 1 1 220px;
     }

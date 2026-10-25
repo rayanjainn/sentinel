@@ -5,7 +5,9 @@ import {
   assetFileName,
   formatBytes,
   lookupLatestRelease,
+  lookupReleases,
   parseRelease,
+  parseReleaseList,
 } from "./releases.ts";
 
 function githubRelease(version: string, names: string[]) {
@@ -104,6 +106,47 @@ describe("lookupLatestRelease", () => {
       throw new TypeError("Failed to fetch");
     });
     assert.deepEqual(result, { status: "error", reason: "GitHub could not be reached" });
+  });
+});
+
+describe("parseReleaseList", () => {
+  test("lists releases newest first and skips drafts", () => {
+    const older = { ...githubRelease("0.1.0", ["Sentinel-0.1.0-linux-x64.deb"]), published_at: "2026-09-01T10:00:00Z" };
+    const newer = { ...githubRelease("0.2.0", ALL_NAMES), prerelease: true, name: "Sentinel 0.2.0 beta" };
+    const draft = { ...githubRelease("0.3.0", ALL_NAMES), draft: true };
+    const list = parseReleaseList([older, draft, newer]);
+    assert.deepEqual(
+      list.map((entry) => [entry.version, entry.prerelease, entry.name]),
+      [
+        ["0.2.0", true, "Sentinel 0.2.0 beta"],
+        ["0.1.0", false, "Sentinel 0.1.0"],
+      ],
+    );
+    assert.ok(list[1]?.assets["linux-x64-deb"]);
+  });
+
+  test("returns nothing for a response that isn't a list", () => {
+    assert.deepEqual(parseReleaseList({ message: "Not Found" }), []);
+  });
+});
+
+describe("lookupReleases", () => {
+  const respond = (status: number, body: unknown) => async () =>
+    new Response(JSON.stringify(body), { status });
+
+  test("returns every published release", async () => {
+    const result = await lookupReleases(respond(200, [githubRelease("0.2.0", ALL_NAMES)]));
+    assert.equal(result.status, "found");
+    assert.equal(result.status === "found" ? result.releases.length : 0, 1);
+  });
+
+  test("treats an empty list as no release yet", async () => {
+    assert.deepEqual(await lookupReleases(respond(200, [])), { status: "none" });
+  });
+
+  test("explains rate limiting", async () => {
+    const result = await lookupReleases(respond(429, {}));
+    assert.match(result.status === "error" ? result.reason : "", /limit/);
   });
 });
 

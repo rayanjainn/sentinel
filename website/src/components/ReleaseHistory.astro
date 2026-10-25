@@ -1,0 +1,261 @@
+---
+import { href, RELEASES_URL } from "../lib/site";
+import Icon from "./Icon.astro";
+---
+
+<section id="history" class="section history" aria-labelledby="history-title">
+  <div class="wrap">
+    <div class="section-head" data-reveal>
+      <span class="eyebrow">Every version</span>
+      <h2 id="history-title" class="section-title">Need an earlier version?</h2>
+      <p class="section-lede">
+        Every release stays on GitHub with its installers and checksums. Pick any version below.
+      </p>
+    </div>
+    <div class="history-tools" data-reveal>
+      <input type="search" placeholder="Filter by version…" aria-label="Filter versions" data-history-filter />
+      <a class="btn btn-secondary" href={RELEASES_URL}>
+        <Icon name="github-logo" />
+        All releases on GitHub
+      </a>
+    </div>
+    <p class="history-status" role="status" data-history-status>Loading versions from GitHub…</p>
+    <div class="history-list" data-history-list>
+      <div class="rel skeleton"></div>
+      <div class="rel skeleton"></div>
+    </div>
+    <p class="history-foot">
+      <a class="arrow-link" href={href("docs/install/")}>Install guide and checksums <Icon name="arrow-right" size={16} /></a>
+    </p>
+  </div>
+</section>
+
+<script>
+  import { OS_LABEL } from "../lib/platform";
+  import { ASSET_SPECS, formatBytes, lookupReleases, type ReleaseEntry } from "../lib/releases";
+
+  const list = document.querySelector<HTMLElement>("[data-history-list]");
+  const status = document.querySelector<HTMLElement>("[data-history-status]");
+  const filter = document.querySelector<HTMLInputElement>("[data-history-filter]");
+
+  const esc = (text: string) =>
+    text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+  const day = (iso: string | null) =>
+    iso ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso)) : "";
+
+  function render(entry: ReleaseEntry, index: number): string {
+    const files = ASSET_SPECS.map((spec) => {
+      const asset = entry.assets[spec.key];
+      if (!asset) return "";
+      return `<a class="file" href="${esc(asset.url)}"><span>${OS_LABEL[spec.os]} · ${esc(spec.label)}<small>${esc(spec.format)}</small></span><b>${formatBytes(asset.size)}</b></a>`;
+    }).join("");
+    const sums = entry.checksums ? `<a class="file" href="${esc(entry.checksums.url)}"><span>Checksums<small>SHA256SUMS.txt</small></span><b>txt</b></a>` : "";
+    const badge = index === 0 ? '<span class="badge">latest</span>' : entry.prerelease ? '<span class="badge pre">pre-release</span>' : "";
+    return `<details class="rel"${index === 0 ? " open" : ""} data-q="${esc(`${entry.name} ${entry.version}`.toLowerCase())}">
+      <summary><span class="tag">${esc(entry.tag)}</span><b>${esc(entry.name)}${badge}</b><span class="when">${day(entry.publishedAt)}</span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="files">${files}${sums}<a class="file" href="${esc(entry.pageUrl)}"><span>Release notes<small>GitHub</small></span><b>↗</b></a></div>
+    </details>`;
+  }
+
+  if (list && status) {
+    void lookupReleases().then((result) => {
+      if (result.status === "found") {
+        list.innerHTML = result.releases.map(render).join("");
+        status.textContent = `${result.releases.length} ${result.releases.length === 1 ? "version" : "versions"} published.`;
+      } else if (result.status === "none") {
+        list.innerHTML = "";
+        status.textContent = "No version has been published yet.";
+      } else {
+        list.innerHTML = "";
+        status.textContent = `Versions couldn't be loaded because ${result.reason}. Every version is on the GitHub releases page.`;
+      }
+    });
+    filter?.addEventListener("input", () => {
+      const q = filter.value.trim().toLowerCase();
+      list.querySelectorAll<HTMLElement>(".rel").forEach((el) => {
+        el.hidden = q !== "" && !(el.dataset.q ?? "").includes(q);
+      });
+    });
+  }
+</script>
+
+<style>
+  .history-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .history-tools input {
+    flex: 1;
+    min-width: 220px;
+    max-width: 360px;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+  }
+
+  .history-status {
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+
+  .history-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .history-list :global(.rel) {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--glass);
+    transition: border-color 0.3s;
+  }
+
+  .history-list :global(.rel[open]) {
+    border-color: color-mix(in srgb, var(--signal) 40%, var(--line));
+  }
+
+  .history-list :global(.skeleton) {
+    height: 58px;
+    background: linear-gradient(90deg, var(--line) 0%, var(--line-strong) 50%, var(--line) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  .history-list :global(summary) {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 16px 18px;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .history-list :global(summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  .history-list :global(.tag) {
+    padding: 3px 9px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--signal) 14%, transparent);
+    color: var(--signal);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .history-list :global(.badge) {
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--grad-signal);
+    color: #04140e;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    vertical-align: 2px;
+  }
+
+  .history-list :global(.badge.pre) {
+    background: var(--grad-warm);
+  }
+
+  .history-list :global(.when) {
+    color: var(--fg-subtle);
+    font-size: 0.875rem;
+  }
+
+  .history-list :global(.chev) {
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--fg-subtle);
+    border-bottom: 2px solid var(--fg-subtle);
+    transform: rotate(-45deg);
+    transition: transform 0.4s var(--ease-out);
+  }
+
+  .history-list :global(.rel[open] .chev) {
+    transform: rotate(45deg);
+  }
+
+  .history-list :global(.files) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+    padding: 0 18px 18px;
+    animation: open-in 0.5s var(--ease-out);
+  }
+
+  @keyframes open-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  .history-list :global(.file) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    color: var(--fg);
+    text-decoration: none;
+    transition:
+      border-color 0.3s,
+      transform 0.3s var(--ease-out);
+  }
+
+  .history-list :global(.file:hover) {
+    border-color: var(--signal);
+    transform: translateY(-2px);
+  }
+
+  .history-list :global(.file small) {
+    display: block;
+    color: var(--fg-subtle);
+    font-size: 0.75rem;
+  }
+
+  .history-list :global(.file b) {
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .history-foot {
+    margin-top: 24px;
+    text-align: center;
+  }
+
+  @media (max-width: 560px) {
+    .history-list :global(summary) {
+      grid-template-columns: 1fr auto;
+    }
+
+    .history-list :global(.when) {
+      grid-column: 1;
+    }
+  }
+</style>

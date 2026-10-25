@@ -3,6 +3,9 @@ export const REPO_URL = `https://github.com/${REPO}`;
 /** Always resolves to the newest published (non-draft, non-prerelease) release page. */
 export const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;
+/** Every published release, newest first: the downloads page lists earlier versions from it. */
+export const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=50`;
+export const RELEASES_URL = `${REPO_URL}/releases`;
 
 /**
  * Prefixes a site-relative path with the configured `base` (`/` on the custom domain).
