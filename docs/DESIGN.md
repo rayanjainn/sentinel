@@ -37,10 +37,10 @@ Rules: no pure black, no purple/blue glow gradients, no gradient text, no decora
 Shadows are tinted with `--shadow-tint`. Destructive confirm buttons use `--danger`; firewall confirms
 additionally require typing the target to confirm.
 
-The marketing website is the one exception to the rules above: it layers a slow aurora, gradient
-primary actions, gradient headline words and glass panels on top of these tokens
-(`website/src/styles/global.css`, "Website colour and motion layer"). The app itself keeps the rules,
-and every website animation loops on its own and stops under reduced motion.
+The marketing website follows the same palette. It adds motion, not colour: scroll reveals, looping
+illustrations and a faint grid behind the top of each page (`website/src/styles/global.css`, "Website
+motion layer"). Its one extra tone is a desaturated steel for secondary data, and every animation stops
+under reduced motion.
 
 Data-visualization palettes (treemap file kinds, per-core ramps, network in/out) live in
 `src/styles/dataviz.ts`, built with the `dataviz` skill and validated for contrast on both grounds.
