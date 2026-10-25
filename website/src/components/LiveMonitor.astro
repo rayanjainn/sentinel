@@ -235,7 +235,7 @@ const rows = [
   }
 
   .s3 {
-    stroke: var(--violet);
+    stroke: var(--fg-muted);
     animation-duration: 4s;
   }
 
@@ -271,18 +271,14 @@ const rows = [
     right: 0;
     bottom: 0;
     height: 30%;
-    background: linear-gradient(0deg, var(--signal), var(--cyan));
-    opacity: 0.85;
+    background: var(--signal);
+    opacity: 0.75;
     animation: core-load calc(2.2s + var(--i) * 0.37s) ease-in-out infinite alternate;
     animation-delay: calc(var(--i) * -0.6s);
   }
 
   .core:nth-child(3n) i {
-    background: linear-gradient(0deg, var(--cyan), var(--violet));
-  }
-
-  .core:nth-child(5n) i {
-    background: linear-gradient(0deg, var(--amber), var(--pink));
+    opacity: 0.45;
   }
 
   @keyframes core-load {

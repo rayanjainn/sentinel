@@ -272,41 +272,31 @@ samp {
   }
 }
 
-/* ── Website colour and motion layer ──────────────────────────────────────
-   Richer than the app on purpose: an aurora behind every page, gradient
-   actions, glass panels. The app's own tokens (above) stay the base. Every
-   animation loops on its own; reduced motion shows everything at rest. */
+/* ── Website motion layer ──────────────────────────────────────────────────
+   The site keeps the app's palette (docs/DESIGN.md): graphite ground, one
+   signal green, amber and coral only for attention. A steel tone is the one
+   extra, used for secondary data such as a second trace. Every animation
+   loops on its own; reduced motion shows everything at rest. */
 [data-theme="dark"] {
-  --ground: #0a0e14;
+  --ground: #0b0f14;
 }
 
 :root,
 [data-theme="dark"] {
-  --cyan: #5ad1ff;
-  --violet: #9b8cff;
-  --pink: #ff7ab6;
-  --amber: #ffc66d;
-  --grad-signal: linear-gradient(115deg, #74d3ae, #5ad1ff 55%, #9b8cff);
-  --grad-warm: linear-gradient(115deg, #ffc66d, #ff7ab6 60%, #9b8cff);
-  --aurora-1: rgb(116 211 174 / 0.22);
-  --aurora-2: rgb(90 209 255 / 0.18);
-  --aurora-3: rgb(155 140 255 / 0.2);
-  --glass: rgb(19 24 32 / 0.62);
-  --glass-line: rgb(150 200 230 / 0.12);
+  --cyan: #7ea6c4;
+  --violet: #8c96a6;
+  --pink: #d98a80;
+  --amber: var(--warn);
+  --grad-signal: linear-gradient(var(--signal), var(--signal));
+  --grad-warm: linear-gradient(var(--warn), var(--warn));
+  --glass: var(--panel);
+  --glass-line: var(--line-strong);
 }
 
 [data-theme="light"] {
-  --cyan: #0a8fc7;
-  --violet: #6b5ce7;
-  --pink: #d43f86;
-  --amber: #b97a12;
-  --grad-signal: linear-gradient(115deg, #16895f, #0a8fc7 55%, #6b5ce7);
-  --grad-warm: linear-gradient(115deg, #d9921c, #d43f86 60%, #6b5ce7);
-  --aurora-1: rgb(22 137 95 / 0.16);
-  --aurora-2: rgb(10 143 199 / 0.14);
-  --aurora-3: rgb(107 92 231 / 0.14);
-  --glass: rgb(255 255 255 / 0.7);
-  --glass-line: rgb(16 24 34 / 0.09);
+  --cyan: #4a6f8c;
+  --violet: #6b7584;
+  --pink: #b5574c;
 }
 
 body {
@@ -314,241 +304,136 @@ body {
   overflow-x: clip;
 }
 
-.aurora {
-  position: fixed;
-  inset: 0;
+/* A faint grid behind the top of each page, fading out. */
+main::before {
+  position: absolute;
+  inset: 0 0 auto;
   z-index: -1;
-  overflow: hidden;
+  height: 720px;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  content: "";
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 0%, #000, transparent 75%);
   pointer-events: none;
 }
 
-.aurora i {
-  position: absolute;
-  width: 62vmax;
-  height: 62vmax;
-  border-radius: 50%;
-  filter: blur(100px);
-}
-
-.aurora i:nth-child(1) {
-  top: -32vmax;
-  left: -18vmax;
-  background: var(--aurora-1);
-  animation: aurora-a 28s ease-in-out infinite alternate;
-}
-
-.aurora i:nth-child(2) {
-  top: -24vmax;
-  right: -26vmax;
-  background: var(--aurora-2);
-  animation: aurora-b 34s ease-in-out infinite alternate;
-}
-
-.aurora i:nth-child(3) {
-  bottom: -38vmax;
-  left: 18vmax;
-  background: var(--aurora-3);
-  animation: aurora-c 40s ease-in-out infinite alternate;
-}
-
-@keyframes aurora-a {
-  to {
-    transform: translate(18vw, 24vh) scale(1.15);
-  }
-}
-
-@keyframes aurora-b {
-  to {
-    transform: translate(-22vw, 28vh) scale(0.9);
-  }
-}
-
-@keyframes aurora-c {
-  to {
-    transform: translate(-14vw, -24vh) scale(1.2);
-  }
-}
-
-.btn-primary {
+main {
   position: relative;
-  overflow: hidden;
-  background: var(--grad-signal);
-  background-size: 200% 100%;
-  color: #04140e;
-  box-shadow: 0 14px 40px -14px color-mix(in srgb, var(--cyan) 70%, transparent);
-  animation: grad-flow 7s ease-in-out infinite alternate;
-}
-
-[data-theme="light"] .btn-primary {
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: var(--grad-signal);
-  background-size: 200% 100%;
-  transform: translateY(-1px);
-}
-
-.btn-primary::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
-  content: "";
-  transform: translateX(-120%);
-  animation: sheen 4.4s var(--ease-out) infinite;
-}
-
-@keyframes grad-flow {
-  to {
-    background-position: 100% 0;
-  }
-}
-
-@keyframes sheen {
-  0%,
-  55% {
-    transform: translateX(-120%);
-  }
-
-  85%,
-  100% {
-    transform: translateX(120%);
-  }
+  isolation: isolate;
 }
 
 .glass {
-  border: 1px solid var(--glass-line);
-  border-radius: 18px;
-  background: var(--glass);
-  box-shadow: var(--shadow-raised);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-dialog);
+  background: var(--panel);
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px 6px 10px;
-  border: 1px solid var(--glass-line);
+  padding: 5px 12px 5px 10px;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: var(--glass);
+  background: var(--panel);
   color: var(--fg-muted);
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .live-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--signal);
-  animation: live-ping 2s infinite;
+  animation: live-ping 2.4s infinite;
 }
 
 @keyframes live-ping {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 70%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 60%, transparent);
   }
 
   80%,
   100% {
-    box-shadow: 0 0 0 10px transparent;
+    box-shadow: 0 0 0 8px transparent;
   }
 }
 
 .eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
   color: var(--signal);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.06em;
 }
 
 .eyebrow::before {
-  width: 20px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--grad-signal);
-  content: "";
+  content: "// ";
+  color: var(--fg-subtle);
 }
 
+/* One emphasised phrase per heading, in the signal colour. No gradients. */
 .grad-text {
-  background: var(--grad-signal);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: grad-flow 8s ease-in-out infinite alternate;
-}
-
-.grad-text.warm {
-  background-image: var(--grad-warm);
+  color: var(--signal);
 }
 
 /* Reveal on scroll (set up by src/scripts/motion.ts). */
 .js [data-reveal] {
   opacity: 0;
-  filter: blur(6px);
-  transform: translateY(28px);
+  transform: translateY(18px);
   transition:
-    opacity 0.9s var(--ease-out),
-    transform 0.9s var(--ease-out),
-    filter 0.9s var(--ease-out);
+    opacity 0.8s var(--ease-out),
+    transform 0.8s var(--ease-out);
   transition-delay: var(--d, 0ms);
 }
 
 .js [data-reveal="left"] {
-  transform: translateX(-36px);
+  transform: translateX(-20px);
 }
 
 .js [data-reveal="right"] {
-  transform: translateX(36px);
+  transform: translateX(20px);
 }
 
 .js [data-reveal="zoom"] {
-  transform: scale(0.93);
+  transform: scale(0.97);
 }
 
 .js [data-reveal].is-in {
   opacity: 1;
-  filter: none;
   transform: none;
 }
 
 .marquee {
   overflow: hidden;
-  padding-block: 18px;
+  padding-block: 16px;
   border-block: 1px solid var(--line);
   mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
 .marquee-track {
   display: flex;
-  gap: 48px;
+  gap: 40px;
   width: max-content;
-  animation: marquee 40s linear infinite;
+  animation: marquee 44s linear infinite;
 }
 
 .marquee span {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: var(--fg-muted);
-  font-weight: 550;
+  gap: 40px;
+  color: var(--fg-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
-.marquee span::before {
-  width: 8px;
-  height: 8px;
-  border-radius: 3px;
-  background: var(--grad-signal);
-  content: "";
-  transform: rotate(45deg);
+.marquee span::after {
+  color: var(--line-strong);
+  content: "/";
 }
 
 @keyframes marquee {
@@ -559,12 +444,13 @@ body {
 
 .section {
   position: relative;
-  padding-block: clamp(72px, 10vw, 128px);
+  padding-block: clamp(72px, 10vw, 120px);
+  border-top: 1px solid var(--line);
 }
 
 .section-head {
-  max-width: 760px;
-  margin: 0 auto clamp(40px, 6vw, 64px);
+  max-width: 740px;
+  margin: 0 auto clamp(40px, 6vw, 56px);
   text-align: center;
 }
 
@@ -579,7 +465,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .js [data-reveal] {
     opacity: 1;
-    filter: none;
     transform: none;
   }
 }

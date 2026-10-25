@@ -24,7 +24,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href={href("favicon.svg")} />
     <link rel="sitemap" href={href("sitemap-index.xml")} />
-    <meta name="theme-color" content="#0a0e14" />
+    <meta name="theme-color" content="#0b0f14" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Sentinel" />
     <meta property="og:title" content={title} />
@@ -46,7 +46,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     </script>
   </head>
   <body>
-    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
     <a class="skip-link" href="#main">Skip to content</a>
     <Header section={section} />
     <main id="main" tabindex="-1">

@@ -53,7 +53,7 @@ const base = href("figures/");
     position: absolute;
     inset: 10% 8%;
     z-index: -1;
-    background: radial-gradient(closest-side, var(--aurora-2), transparent);
+    background: none;
     content: "";
     filter: blur(30px);
   }
@@ -99,9 +99,9 @@ const base = href("figures/");
     --anatomy-halo-opacity: 0.9;
     --anatomy-dot: #e3e8ee;
     --fig-s0: #74d3ae;
-    --fig-s1: #5ad1ff;
-    --fig-s2: #ffc66d;
-    --fig-s3: #ff7ab6;
+    --fig-s1: #7ea6c4;
+    --fig-s2: #e3a857;
+    --fig-s3: #9aa3b2;
   }
 
   :global([data-theme="light"]) .fig-host :global(.iso) {
@@ -127,9 +127,9 @@ const base = href("figures/");
     --anatomy-halo-opacity: 0.3;
     --anatomy-dot: #2a3540;
     --fig-s0: #16895f;
-    --fig-s1: #0a8fc7;
-    --fig-s2: #b97a12;
-    --fig-s3: #d43f86;
+    --fig-s1: #4a6f8c;
+    --fig-s2: #a86a10;
+    --fig-s3: #6b7584;
   }
 
   .sampler-steps {
@@ -160,13 +160,19 @@ const base = href("figures/");
     place-items: center;
     width: 30px;
     height: 30px;
-    border-radius: 10px;
-    background: var(--grad-signal);
-    color: #04140e;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    color: var(--fg-subtle);
+    font-family: var(--font-mono);
     content: counter(s);
     counter-increment: s;
     font-size: 0.85rem;
     font-weight: 700;
+  }
+
+  .sampler-steps li:global(.is-active)::before {
+    border-color: var(--signal);
+    color: var(--signal);
   }
 
   .sampler-steps li:global(.is-active) {
