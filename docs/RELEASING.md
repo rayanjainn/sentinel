@@ -20,12 +20,15 @@ The website (`.github/workflows/deploy-site.yml`) deploys separately and never w
 2. **Make sure CI is green on that commit** (`ci.yml`: Rust on all three OSes, bindings drift,
    no `not_wired` stubs, frontend, website).
 
-3. **Tag and push.**
+3. **Tag and push**, or start it from GitHub.
 
    ```sh
    git tag v0.2.0
    git push origin main v0.2.0
    ```
+
+   Without a local tag: Actions > Release > Run workflow, pick `main` and enter `0.2.0`. The run
+   builds that commit and creates the `v0.2.0` tag on it when the release is published.
 
 4. **Watch the run** under Actions > Release. It takes roughly 20–40 minutes; the first notarized
    macOS build can take longer while Apple processes a new Developer ID.

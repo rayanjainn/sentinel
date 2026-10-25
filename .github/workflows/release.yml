@@ -1,7 +1,9 @@
 # Release pipeline for Sentinel.
 #
-# Trigger: pushing a tag named v<version>, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
-# The tag must match the version in src-tauri/tauri.conf.json, Cargo.toml and package.json.
+# Trigger: pushing a tag named v<version>, e.g. `git tag v0.1.0 && git push origin v0.1.0`,
+# or Actions > Release > Run workflow with the version (e.g. 0.1.0). A manual run builds the
+# selected branch's commit and creates the v<version> tag on it when the release is published.
+# Either way the version must match src-tauri/tauri.conf.json, Cargo.toml and package.json.
 #
 # Jobs:
 #   prepare  checks versions and signing secrets, creates (or reuses) a draft GitHub Release.
@@ -41,10 +43,16 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v (must match tauri.conf.json, Cargo.toml and package.json)"
+        required: true
+        type: string
 
-# Never cancel a release half-way; a second push of the same tag waits its turn.
+# Never cancel a release half-way; a second run for the same tag waits its turn.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -52,6 +60,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # The release tag: the pushed tag, or v<version> for a manual run.
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
   CARGO_INCREMENTAL: 0
 
 defaults:
@@ -75,7 +85,7 @@ jobs:
       - name: Check tag matches app version
         id: version
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           version="${tag#v}"
           tauri_version="$(jq -r .version src-tauri/tauri.conf.json)"
           npm_version="$(jq -r .version package.json)"
@@ -127,7 +137,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           # Re-running a failed release reuses its draft instead of creating a duplicate.
           if ! gh release view "$tag" --json databaseId >/dev/null 2>&1; then
             prerelease=()
@@ -145,12 +155,15 @@ jobs:
           | Linux x64, other distributions | \`Sentinel-$VERSION-linux-x64.AppImage\` |
 
           Verify downloads against \`SHA256SUMS.txt\`. Install notes and first-run permissions:
-          https://rayanjainn.github.io/sentinel/docs/install/
+          https://sentinel.raycode.tech/docs/install/
 
           EOF
+            # A pushed tag must already exist; a manual run creates it on the built commit.
+            target=(--verify-tag)
+            [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && target=(--target "$GITHUB_SHA")
             gh release create "$tag" \
               --draft \
-              --verify-tag \
+              "${target[@]}" \
               --title "Sentinel $VERSION" \
               --notes-file "$RUNNER_TEMP/notes.md" \
               --generate-notes \
@@ -354,7 +367,7 @@ jobs:
       # The website's download buttons match these exact names; fail loudly if one is missing.
       - name: Verify release assets
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           expected=(
             "Sentinel-$VERSION-macos-arm64.dmg"
             "Sentinel-$VERSION-macos-x64.dmg"
@@ -377,7 +390,7 @@ jobs:
 
       - name: Upload SHA256SUMS.txt
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           mkdir -p "$RUNNER_TEMP/assets"
           cd "$RUNNER_TEMP/assets"
           gh release download "$tag" --pattern "Sentinel-$VERSION-*"
@@ -389,7 +402,7 @@ jobs:
         env:
           KEEP_DRAFT: ${{ vars.RELEASE_DRAFT }}
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           if [ "$KEEP_DRAFT" = "true" ]; then
             echo "::notice title=Draft kept::RELEASE_DRAFT=true, publish Sentinel $VERSION manually from the Releases page."
             exit 0
